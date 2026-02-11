@@ -1,0 +1,375 @@
+# Technical Decisions
+
+This document records significant technical decisions made during implementation.
+
+---
+
+## TD-001: Output Format - Altium .PcbLib (ASCII)
+
+**Date:** 2026-02-11
+**Status:** Decided
+
+### Context
+Need to generate PCB footprint files that can be imported into Altium Designer 26.
+
+### Alternatives Considered
+
+| Option | Pros | Cons |
+|--------|------|------|
+| `.PcbLib` ASCII | Human-readable, easy to debug, text generation straightforward | Footprint only, no schematic symbol |
+| `.IntLib` binary | Includes schematic symbol, single file for complete component | OLE compound document format, complex binary structure, requires reverse engineering |
+| DelphiScript generation | Native Altium scripting, full API access | Requires user to run script manually, more complex workflow |
+| Clipboard paste format | Direct paste into Altium editor | Undocumented format, fragile |
+
+### Decision
+Use `.PcbLib` ASCII format.
+
+### Rationale
+1. Ground truth data in `documents/` uses this format - proven to work
+2. ASCII is human-readable and easier to debug during development
+3. Text generation is dramatically simpler than binary OLE documents
+4. Direct import into Altium's PcbLib editor works reliably
+
+### Why Not IntLib
+IntLib was seriously considered since it bundles footprint + schematic symbol. However:
+- Binary OLE compound document format requires specialized libraries
+- Would need to reverse-engineer the format or use Altium's scripting API
+- MVP focuses on footprint only; schematic symbols are out of scope
+- Can add IntLib support later once ASCII format is proven
+
+### Consequences
+- Cannot include schematic symbols in output (would need IntLib)
+- File structure must match exact Altium parsing expectations
+- Users import footprint-only, must create schematic symbol separately
+
+---
+
+## TD-002: AI Model - Claude Haiku (Initial)
+
+**Date:** 2026-02-11
+**Status:** Decided
+
+### Context
+Need to extract structured dimensions from datasheet images using AI vision.
+
+### Alternatives Considered
+
+| Model | Input Cost | Output Cost | Vision Quality | Speed |
+|-------|------------|-------------|----------------|-------|
+| Claude Haiku | $0.25/1M | $1.25/1M | Good | Fast |
+| Claude Sonnet | $3/1M | $15/1M | Better | Medium |
+| Claude Opus | $15/1M | $75/1M | Best | Slower |
+| GPT-4V | $10/1M | $30/1M | Excellent | Medium |
+| Gemini Pro Vision | $0.25/1M | $0.50/1M | Good | Fast |
+
+### Decision
+Start with Claude Haiku, architecture allows model swapping.
+
+### Rationale
+1. Cost target is $0.01-0.05 per extraction - Haiku meets this
+2. Datasheet images are typically well-structured engineering drawings
+3. Can upgrade to Sonnet/Opus if accuracy insufficient
+4. Model parameter is configurable in extraction.py for easy swapping
+
+### Why Not Sonnet/Opus Initially
+- 12x-60x more expensive per extraction
+- Unknown if the accuracy improvement justifies cost for this use case
+- Better to start cheap and upgrade only if needed
+- User feedback will indicate if accuracy is insufficient
+
+### Why Not GPT-4V or Gemini
+- Anthropic API already integrated, consistent API surface
+- Claude has strong structured output capabilities
+- Avoid vendor lock-in to multiple AI providers in MVP
+- Can add as alternatives later if needed
+
+### Consequences
+- May need to iterate on prompts for accuracy
+- Complex table-variable correlations may need Sonnet
+- User can trade cost for accuracy if needed
+
+---
+
+## TD-003: Frontend Framework - React + Tailwind
+
+**Date:** 2026-02-11
+**Status:** Decided
+
+### Context
+Need a frontend for image upload, dimension review, and 2D preview canvas.
+
+### Alternatives Considered
+
+| Option | Pros | Cons |
+|--------|------|------|
+| React + Tailwind + Vite | Large ecosystem, fast dev, good canvas libs | Requires Node.js tooling |
+| Vue 3 + Tailwind | Simpler learning curve, good DX | Smaller ecosystem than React |
+| Svelte + Tailwind | Excellent performance, less boilerplate | Smaller community, fewer libraries |
+| Vanilla JS + CSS | No build step, simple | Slow development, manual state management |
+| HTMX + Jinja | Server-rendered, Python-only stack | Limited interactivity for canvas preview |
+
+### Decision
+Use React with Tailwind CSS, bootstrapped with Vite.
+
+### Rationale
+1. Fast development with component-based architecture
+2. Tailwind enables rapid styling without writing CSS files
+3. Vite provides fast HMR and build times
+4. Large ecosystem for drag-drop (react-dropzone), canvas (react-konva), etc.
+
+### Why Not Vue/Svelte
+- React has larger ecosystem for specialized components we need
+- Team familiarity with React (assumed)
+- More Stack Overflow answers and documentation available
+- Not a strong reason against them; could work equally well
+
+### Why Not HTMX
+- 2D canvas preview requires significant client-side interactivity
+- Drag-drop upload UX benefits from SPA approach
+- Real-time confidence highlighting easier with React state
+
+### Consequences
+- Need Node.js tooling alongside Python backend
+- Two build processes (frontend + backend)
+- Slightly more complex deployment
+
+---
+
+## TD-004: Backend Framework - FastAPI
+
+**Date:** 2026-02-11
+**Status:** Decided
+
+### Context
+Need a Python backend for Claude API calls and file generation.
+
+### Alternatives Considered
+
+| Option | Pros | Cons |
+|--------|------|------|
+| FastAPI | Async, auto OpenAPI docs, Pydantic built-in | Newer, less battle-tested |
+| Flask | Simple, mature, huge ecosystem | No async, manual validation |
+| Django | Batteries included, ORM, admin | Heavyweight for API-only service |
+| Node.js Express | Same language as frontend | Lose Python ecosystem for file generation |
+
+### Decision
+Use FastAPI.
+
+### Rationale
+1. Async support for non-blocking AI API calls
+2. Automatic OpenAPI documentation generation
+3. Pydantic integration for request/response validation
+4. Python ecosystem for file I/O and text processing
+
+### Why Not Flask
+- No native async support - AI API calls would block
+- Manual request validation with marshmallow/etc adds boilerplate
+- FastAPI is essentially "Flask with async and Pydantic"
+
+### Why Not Django
+- Overkill for a stateless API service
+- ORM not needed (no database in MVP)
+- Admin panel not useful for this use case
+
+### Why Not Node.js
+- Python has better libraries for text/file manipulation
+- Anthropic Python SDK is well-maintained
+- Keeps backend in single language
+
+### Consequences
+- Requires Python 3.8+ with type hints
+- May need async anthropic client for best performance
+
+---
+
+## TD-005: Coordinate System
+
+**Date:** 2026-02-11
+**Status:** Decided
+
+### Context
+Need to define coordinate system for pad positions.
+
+### Alternatives Considered
+
+| Option | Description |
+|--------|-------------|
+| Altium convention | Origin at center, +X right, +Y up, mm |
+| KiCad convention | Origin at top-left, +X right, +Y down, mm |
+| Datasheet convention | Varies per manufacturer |
+| Mils-based | Origin at center, imperial units |
+
+### Decision
+Use Altium convention:
+- Origin at component center
+- +X points right
+- +Y points up
+- Units in millimeters
+- Rotations in degrees (0° = pad horizontal)
+
+### Rationale
+1. Matches Altium's internal representation exactly
+2. Ground truth data uses this convention
+3. No coordinate transformation needed on export
+4. Industry standard for component-centric coordinates
+
+### Why Not KiCad Convention
+- Would require Y-axis flip on export to Altium
+- Additional transformation = additional bugs
+- Our target is Altium, not KiCad
+
+### Why Not Mils
+- Metric (mm) is more common in modern datasheets
+- Altium handles mm natively
+- Easier mental math for users
+
+### Consequences
+- AI extraction must output in this coordinate system
+- Preview canvas must mirror this orientation (+Y up)
+- Any future KiCad export would need coordinate transformation
+
+---
+
+## TD-006: Job Storage - In-Memory (MVP)
+
+**Date:** 2026-02-11
+**Status:** Decided
+
+### Context
+Need to store extraction results between API calls (upload → extract → confirm → generate).
+
+### Alternatives Considered
+
+| Option | Pros | Cons |
+|--------|------|------|
+| In-memory dict | Simple, fast, no dependencies | Lost on restart, no scaling |
+| Redis | Fast, TTL support, scalable | External dependency, overkill for MVP |
+| SQLite | Persistent, no server needed | Slower, needs schema management |
+| PostgreSQL | Full-featured, scalable | Heavy dependency for MVP |
+| File-based | Persistent, simple | Slow, concurrency issues |
+
+### Decision
+Use in-memory dictionary for MVP, keyed by job_id (UUID).
+
+### Rationale
+1. Stateless design for MVP (no user accounts)
+2. Simplest possible implementation
+3. Jobs are short-lived (minutes, not hours)
+4. Can migrate to Redis/database later if needed
+
+### Why Not Redis
+- External service to manage adds complexity
+- No horizontal scaling needed for MVP
+- Over-engineering for demo/prototype stage
+
+### Why Not SQLite/PostgreSQL
+- No persistence needed - jobs are ephemeral
+- Database schema management overhead
+- Would suggest permanence that isn't needed
+
+### Consequences
+- Jobs lost on server restart (acceptable for MVP)
+- No persistence across sessions
+- Memory usage scales with concurrent jobs (acceptable for low traffic)
+- Clear migration path to Redis if scaling needed
+
+---
+
+## TD-007: Pin 1 Handling
+
+**Date:** 2026-02-11
+**Status:** Decided
+
+### Context
+Pin 1 identification is critical for correct footprint orientation. Wrong Pin 1 = unusable footprint.
+
+### Alternatives Considered
+
+| Option | UX | Accuracy | Complexity |
+|--------|-----|----------|------------|
+| Always manual | Extra click every time | 100% (user decides) | Low |
+| AI only | Zero clicks | ~70-90% | Medium |
+| AI + manual fallback | Usually zero clicks | ~95%+ | Medium |
+| Shape inference only | Zero clicks | ~60% | Low |
+
+### Decision
+AI detection with fallback to manual selection.
+
+### Rationale
+1. AI can often detect Pin 1 from visual cues (dot, chamfer, pad shape)
+2. User confirmation provides safety net for critical dimension
+3. Interactive selection is intuitive UX (click on preview)
+4. Reduces clicks for well-marked components
+
+### Why Not Always Manual
+- Tedious for users when AI could easily detect it
+- Many datasheets clearly mark Pin 1
+- Unnecessary friction
+
+### Why Not AI Only
+- Pin 1 errors are catastrophic (board respin)
+- AI confidence varies by datasheet quality
+- User should always have override capability
+
+### Why Not Shape Inference Only
+- Not all Pin 1 pads have distinctive shapes
+- Rounded rectangle isn't universal convention
+- Too unreliable as sole method
+
+### Consequences
+- Need Pin1Selector component in frontend
+- API must flag pin1_detected confidence
+- UI flow branches based on detection result
+
+---
+
+## TD-008: Confidence Scoring
+
+**Date:** 2026-02-11
+**Status:** Decided
+
+### Context
+Need to communicate extraction uncertainty to users so they know what to verify.
+
+### Alternatives Considered
+
+| Option | User Experience | Implementation |
+|--------|-----------------|----------------|
+| No confidence display | Clean UI, user trusts all values | Simple |
+| Binary (confident/uncertain) | Clear but loses nuance | Simple |
+| Numeric score (0-100%) | Precise but overwhelming | Medium |
+| Color-coded thresholds | Visual, scannable, intuitive | Medium |
+| Detailed per-dimension breakdown | Maximum info, cluttered | Complex |
+
+### Decision
+- Per-pad confidence score (0-1)
+- Overall extraction confidence score
+- Visual highlighting: yellow (0.5-0.7), orange (<0.5), no highlight (>0.7)
+
+### Rationale
+1. Users need to know which values to double-check
+2. Color coding is intuitive and fast to scan
+3. Threshold-based highlighting is simple to implement
+4. Numeric scores available for power users who want details
+
+### Why Not No Confidence
+- Users might blindly trust incorrect extractions
+- Key differentiator from "dumb" tools
+- Builds appropriate trust calibration
+
+### Why Not Binary Only
+- Loses useful gradation (0.51 vs 0.69 both "uncertain")
+- Color thresholds give similar simplicity with more info
+
+### Consequences
+- AI prompt must output confidence per dimension
+- Frontend must style based on confidence thresholds
+- Users can trust high-confidence values, focus verification on low ones
+
+---
+
+## Future Decisions (To Be Made)
+
+- **TD-009:** Production deployment strategy (Railway configuration)
+- **TD-010:** Rate limiting and abuse prevention
+- **TD-011:** Error recovery for partial extractions
