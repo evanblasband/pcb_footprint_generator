@@ -25,7 +25,9 @@
 - [ ] Assess Haiku accuracy
 
 ### Backend Core
-- [ ] Create models.py with Pydantic schemas
+- [x] Create models.py with Pydantic schemas
+- [x] Create tests/test_models.py (36 tests passing)
+- [x] Create requirements.txt
 - [ ] Create main.py with FastAPI endpoints
 - [ ] POST /api/upload endpoint
 - [ ] GET /api/extract/{job_id} endpoint
@@ -33,7 +35,6 @@
 - [ ] GET /api/generate/{job_id} endpoint
 - [ ] GET /api/detect-standard endpoint
 - [ ] Create utils.py helpers
-- [ ] Create requirements.txt
 
 ## Day 2: Frontend + Integration
 
