@@ -12,7 +12,20 @@
       "WebFetch(domain:www.altium.com)",
       "WebSearch",
       "WebFetch(domain:api.github.com)",
-      "WebFetch(domain:pyaltiumlib.readthedocs.io)"
+      "WebFetch(domain:pyaltiumlib.readthedocs.io)",
+      "WebFetch(domain:pypi.org)",
+      "WebFetch(domain:docs.rs)",
+      "WebFetch(domain:www.eurointech.ru)",
+      "WebFetch(domain:www.eevblog.com)",
+      "WebFetch(domain:community.cadence.com)",
+      "WebFetch(domain:dev-docs.kicad.org)",
+      "WebFetch(domain:blog.mbedded.ninja)",
+      "WebFetch(domain:studylib.net)",
+      "WebFetch(domain:suddendocs.samtec.com)",
+      "WebFetch(domain:help.solidworks.com)",
+      "WebFetch(domain:www.phys.hawaii.edu)",
+      "Bash(ls:*)",
+      "WebFetch(domain:techdocs.altium.com)"
     ]
   }
 }

@@ -4,10 +4,10 @@ This document records significant technical decisions made during implementation
 
 ---
 
-## TD-001: Output Format - Altium .PcbLib (ASCII)
+## TD-001: Output Format - DelphiScript (.pas)
 
 **Date:** 2026-02-11
-**Status:** Decided
+**Status:** Decided (Updated after testing)
 
 ### Context
 Need to generate PCB footprint files that can be imported into Altium Designer 26.
@@ -16,31 +16,36 @@ Need to generate PCB footprint files that can be imported into Altium Designer 2
 
 | Option | Pros | Cons |
 |--------|------|------|
-| `.PcbLib` ASCII | Human-readable, easy to debug, text generation straightforward | Footprint only, no schematic symbol |
-| `.IntLib` binary | Includes schematic symbol, single file for complete component | OLE compound document format, complex binary structure, requires reverse engineering |
-| DelphiScript generation | Native Altium scripting, full API access | Requires user to run script manually, more complex workflow |
-| Clipboard paste format | Direct paste into Altium editor | Undocumented format, fragile |
+| `.PcbLib` ASCII | Human-readable, easy to debug | **Does not work** - files open empty in AD26 |
+| `.PcbLib` binary (OLE) | Native format | Complex binary structure, requires reverse engineering |
+| **DelphiScript (.pas)** | Uses official Altium API, guaranteed compatibility | Requires user to run script manually |
+| PADS ASCII import | Import wizard available | Different ecosystem, conversion loss |
 
 ### Decision
-Use `.PcbLib` ASCII format.
+Use **DelphiScript (.pas)** files that users run inside Altium Designer.
 
 ### Rationale
-1. Ground truth data in `documents/` uses this format - proven to work
-2. ASCII is human-readable and easier to debug during development
-3. Text generation is dramatically simpler than binary OLE documents
-4. Direct import into Altium's PcbLib editor works reliably
+1. **ASCII .PcbLib does not work** - files open but appear empty (native format is binary OLE)
+2. DelphiScript uses Altium's official PCB API (`PCBServer`, `IPCB_Library`, etc.)
+3. Guaranteed to create valid footprints since we use the same API Altium uses internally
+4. Human-readable scripts that users can modify if needed
 
-### Why Not IntLib
-IntLib was seriously considered since it bundles footprint + schematic symbol. However:
-- Binary OLE compound document format requires specialized libraries
-- Would need to reverse-engineer the format or use Altium's scripting API
-- MVP focuses on footprint only; schematic symbols are out of scope
-- Can add IntLib support later once ASCII format is proven
+### Why Not ASCII .PcbLib
+- **Tested and failed** - files open in Altium but contain no pads/tracks
+- Native `.PcbLib` format is binary OLE compound document, not ASCII
+- Altium's "ASCII export" feature creates a different format than what Altium imports
+
+### User Workflow
+1. Open Altium Designer 26
+2. Open Script Project (`FootprintScripts.PrjScr`)
+3. Create/open a PCB Library document
+4. Run the desired `.pas` script via Run → Script
+5. Footprint is created in the library
 
 ### Consequences
-- Cannot include schematic symbols in output (would need IntLib)
-- File structure must match exact Altium parsing expectations
-- Users import footprint-only, must create schematic symbol separately
+- Slightly more complex user workflow (must run script)
+- Full access to Altium's pad/via/track creation API
+- Future enhancement: Could automate script execution via Altium's command line
 
 ---
 
@@ -368,8 +373,50 @@ Need to communicate extraction uncertainty to users so they know what to verify.
 
 ---
 
+---
+
+## TD-009: Known Altium API Limitations (MVP)
+
+**Date:** 2026-02-11
+**Status:** Documented for future resolution
+
+### Context
+During Altium Designer 26 testing, several API limitations were discovered.
+
+### Known Limitations
+
+| Issue | Current Behavior | Workaround | Priority |
+|-------|------------------|------------|----------|
+| Rounded Rectangle pads | `eRoundRectShape` causes access violation crash | Using `eRectangular` as fallback | Medium |
+| Slotted hole length | `HoleLength` property doesn't exist in AD26 | Using `HoleWidth` - **may not work correctly** | High |
+| Script execution UX | Users must manually run scripts in Altium | Document clear procedure | Medium |
+
+### Rounded Rectangle Issue
+- Constant `eRoundRectShape` from documentation causes crashes
+- Fallback: Generate as `eRectangular`, user manually sets corner radius
+- Future: Research correct AD26 constant or use custom pad shape API
+
+### Slotted Hole Issue
+- `HoleLength` property is undeclared identifier in AD26
+- Current attempt: Using `HoleWidth` property for slot length
+- Need to verify if slots are created correctly
+- Future: Research correct AD26 slot API properties
+
+### Script Execution UX
+- Current flow requires: Open project → Open library → Run script
+- Not intuitive for first-time users
+- Future: Consider Altium command-line automation or installer script
+
+### Items to Revisit
+1. [ ] Research AD26 rounded rectangle pad API
+2. [ ] Verify slotted hole generation works correctly
+3. [ ] Simplify user workflow for running scripts
+4. [ ] Consider alternative output formats (PADS import, etc.)
+
+---
+
 ## Future Decisions (To Be Made)
 
-- **TD-009:** Production deployment strategy (Railway configuration)
-- **TD-010:** Rate limiting and abuse prevention
-- **TD-011:** Error recovery for partial extractions
+- **TD-010:** Production deployment strategy (Railway configuration)
+- **TD-011:** Rate limiting and abuse prevention
+- **TD-012:** Error recovery for partial extractions

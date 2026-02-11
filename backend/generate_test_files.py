@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-Generate test .PcbLib files for Altium Designer 26 import verification.
+Generate test files for Altium Designer 26 import verification.
 
-This script creates a set of test footprint files covering different
-pad types, shapes, and configurations. Use these files to validate
-that the generator output is compatible with Altium Designer.
+This script creates test footprint files in TWO formats:
+1. DelphiScript (.pas) - Run inside Altium to create footprints (RECOMMENDED)
+2. ASCII (.PcbLib) - Direct file open (may not work correctly)
 
 Usage:
     cd backend
@@ -12,7 +12,16 @@ Usage:
     python generate_test_files.py
 
 Output:
-    Creates .PcbLib files in backend/test_output/
+    Creates files in backend/test_output/:
+    - *.pas files (DelphiScript - run via DXP -> Run Script)
+    - *.PcbLib files (ASCII format - for reference)
+
+DelphiScript Usage in Altium:
+    1. Open a new PCB Library (File -> New -> Library -> PCB Library)
+    2. DXP -> Run Script
+    3. Browse to the .pas file
+    4. Click "Run"
+    5. The footprint will be created in the current library
 
 See tests/ALTIUM_TESTING_PLAN.md for the full testing procedure.
 """
@@ -34,16 +43,17 @@ from models import (
     Outline,
 )
 from generator import write_pcblib
+from generator_delphiscript import write_delphiscript
 
 
 # =============================================================================
-# Test Case 1: Simple SMD Footprint (2 pads)
+# Test Footprint Definitions
 # =============================================================================
 
 
-def generate_test_smd_simple() -> None:
+def create_test_smd_simple() -> Footprint:
     """
-    Generate a minimal SMD footprint to verify basic import.
+    Create a minimal SMD footprint to verify basic import.
 
     This is the simplest possible footprint - just two rectangular
     SMD pads and a silkscreen outline.
@@ -68,24 +78,17 @@ def generate_test_smd_simple() -> None:
             pad_type=PadType.SMD,
         ),
     ]
-    footprint = Footprint(
+    return Footprint(
         name="TEST-SMD-SIMPLE",
         description="Simple 2-pad SMD test footprint",
         pads=pads,
         outline=Outline(width=4.0, height=2.0),
     )
-    write_pcblib(footprint, "test_output/TEST-SMD-SIMPLE.PcbLib")
-    print("  Generated: test_output/TEST-SMD-SIMPLE.PcbLib")
 
 
-# =============================================================================
-# Test Case 2: Through-Hole Footprint with Round Drills
-# =============================================================================
-
-
-def generate_test_th_round() -> None:
+def create_test_th_round() -> Footprint:
     """
-    Generate a through-hole footprint with round drill holes.
+    Create a through-hole footprint with round drill holes.
 
     Tests:
     - MultiLayer pad assignment
@@ -126,24 +129,17 @@ def generate_test_th_round() -> None:
             drill=Drill(diameter=0.9),
         ),
     ]
-    footprint = Footprint(
+    return Footprint(
         name="TEST-TH-ROUND",
         description="Through-hole test with round drills",
         pads=pads,
         outline=Outline(width=8.0, height=3.0),
     )
-    write_pcblib(footprint, "test_output/TEST-TH-ROUND.PcbLib")
-    print("  Generated: test_output/TEST-TH-ROUND.PcbLib")
 
 
-# =============================================================================
-# Test Case 3: Through-Hole with Slotted Holes
-# =============================================================================
-
-
-def generate_test_th_slotted() -> None:
+def create_test_th_slotted() -> Footprint:
     """
-    Generate a through-hole footprint with slotted drill holes.
+    Create a through-hole footprint with slotted drill holes.
 
     Tests:
     - Drilled Slot type specification
@@ -186,24 +182,17 @@ def generate_test_th_slotted() -> None:
             drill=Drill(diameter=0.65, slot_length=2.45, drill_type=DrillType.SLOT),
         ),
     ]
-    footprint = Footprint(
+    return Footprint(
         name="TEST-TH-SLOTTED",
         description="Through-hole test with slotted holes",
         pads=pads,
         outline=Outline(width=12.0, height=5.0),
     )
-    write_pcblib(footprint, "test_output/TEST-TH-SLOTTED.PcbLib")
-    print("  Generated: test_output/TEST-TH-SLOTTED.PcbLib")
 
 
-# =============================================================================
-# Test Case 4: SMD with Thermal Vias
-# =============================================================================
-
-
-def generate_test_smd_with_vias() -> None:
+def create_test_smd_with_vias() -> Footprint:
     """
-    Generate an SMD footprint with exposed pad and thermal vias.
+    Create an SMD footprint with exposed pad and thermal vias.
 
     Tests:
     - Via record generation
@@ -270,25 +259,18 @@ def generate_test_smd_with_vias() -> None:
         Via(x=-0.5, y=-0.5, diameter=0.5, drill_diameter=0.2),
         Via(x=0.5, y=-0.5, diameter=0.5, drill_diameter=0.2),
     ]
-    footprint = Footprint(
+    return Footprint(
         name="TEST-SMD-VIAS",
         description="SMD with thermal pad and vias",
         pads=pads,
         vias=vias,
         outline=Outline(width=6.0, height=4.0),
     )
-    write_pcblib(footprint, "test_output/TEST-SMD-VIAS.PcbLib")
-    print("  Generated: test_output/TEST-SMD-VIAS.PcbLib")
 
 
-# =============================================================================
-# Test Case 5: Ground Truth - SO-8EP
-# =============================================================================
-
-
-def generate_test_so8ep() -> None:
+def create_test_so8ep() -> Footprint:
     """
-    Generate SO-8EP footprint matching ground truth data.
+    Create SO-8EP footprint matching ground truth data.
 
     This is the most important test case - it should match the
     ground truth values from documents/Raw Ground Truth Data.
@@ -349,25 +331,18 @@ def generate_test_so8ep() -> None:
         for y in [-1.1, 0, 1.1]:
             vias.append(Via(x=x, y=y, diameter=0.5, drill_diameter=0.2))
 
-    footprint = Footprint(
+    return Footprint(
         name="SO-8EP",
         description="SOIC-8 with exposed thermal pad - Ground Truth Test",
         pads=signal_pads + [thermal_pad],
         vias=vias,
         outline=Outline(width=5.0, height=4.0),
     )
-    write_pcblib(footprint, "test_output/SO-8EP.PcbLib")
-    print("  Generated: test_output/SO-8EP.PcbLib")
 
 
-# =============================================================================
-# Test Case 6: All Pad Shapes
-# =============================================================================
-
-
-def generate_test_all_shapes() -> None:
+def create_test_all_shapes() -> Footprint:
     """
-    Generate a footprint with all supported pad shapes.
+    Create a footprint with all supported pad shapes.
 
     Tests:
     - Round shape
@@ -413,14 +388,38 @@ def generate_test_all_shapes() -> None:
             pad_type=PadType.SMD,
         ),
     ]
-    footprint = Footprint(
+    return Footprint(
         name="TEST-ALL-SHAPES",
         description="Test all pad shapes: Round, Rectangular, Rounded Rectangle, Oval",
         pads=pads,
         outline=Outline(width=10.0, height=3.0),
     )
-    write_pcblib(footprint, "test_output/TEST-ALL-SHAPES.PcbLib")
-    print("  Generated: test_output/TEST-ALL-SHAPES.PcbLib")
+
+
+# =============================================================================
+# File Generation
+# =============================================================================
+
+
+def generate_both_formats(footprint: Footprint, output_dir: str) -> None:
+    """
+    Generate both DelphiScript and ASCII formats for a footprint.
+
+    Args:
+        footprint: The footprint to generate files for
+        output_dir: Directory to write files to
+    """
+    name = footprint.name
+
+    # Generate DelphiScript (.pas) - RECOMMENDED
+    pas_path = os.path.join(output_dir, f"{name}.pas")
+    write_delphiscript(footprint, pas_path)
+    print(f"  [RECOMMENDED] {name}.pas (DelphiScript)")
+
+    # Generate ASCII (.PcbLib) - for reference
+    pcblib_path = os.path.join(output_dir, f"{name}.PcbLib")
+    write_pcblib(footprint, pcblib_path)
+    print(f"  [Reference]   {name}.PcbLib (ASCII)")
 
 
 # =============================================================================
@@ -429,44 +428,48 @@ def generate_test_all_shapes() -> None:
 
 
 def main() -> None:
-    """Generate all test .PcbLib files."""
+    """Generate all test files in both formats."""
     # Create output directory
     output_dir = os.path.join(os.path.dirname(__file__), "test_output")
     os.makedirs(output_dir, exist_ok=True)
 
-    print("=" * 60)
-    print("Generating test .PcbLib files for Altium Designer 26")
-    print("=" * 60)
+    print("=" * 70)
+    print("Generating test files for Altium Designer 26")
+    print("=" * 70)
+    print()
+    print("Two formats are generated:")
+    print("  1. DelphiScript (.pas) - Run via DXP -> Run Script [RECOMMENDED]")
+    print("  2. ASCII (.PcbLib) - Direct file open [May not work]")
     print()
 
-    # Generate all test files
-    print("Test Case 1: Simple SMD footprint")
-    generate_test_smd_simple()
+    # Test cases
+    test_cases = [
+        ("Test Case 1: Simple SMD footprint", create_test_smd_simple),
+        ("Test Case 2: Through-hole with round drills", create_test_th_round),
+        ("Test Case 3: Through-hole with slotted holes", create_test_th_slotted),
+        ("Test Case 4: SMD with thermal vias", create_test_smd_with_vias),
+        ("Test Case 5: SO-8EP (Ground Truth)", create_test_so8ep),
+        ("Test Case 6: All pad shapes", create_test_all_shapes),
+    ]
 
-    print("\nTest Case 2: Through-hole with round drills")
-    generate_test_th_round()
+    for description, create_func in test_cases:
+        print(f"{description}")
+        footprint = create_func()
+        generate_both_formats(footprint, output_dir)
+        print()
 
-    print("\nTest Case 3: Through-hole with slotted holes")
-    generate_test_th_slotted()
-
-    print("\nTest Case 4: SMD with thermal vias")
-    generate_test_smd_with_vias()
-
-    print("\nTest Case 5: SO-8EP (Ground Truth)")
-    generate_test_so8ep()
-
-    print("\nTest Case 6: All pad shapes")
-    generate_test_all_shapes()
-
-    print()
-    print("=" * 60)
+    print("=" * 70)
     print(f"All test files generated in: {output_dir}/")
     print()
-    print("Next steps:")
-    print("  1. Copy test files to a machine with Altium Designer 26")
-    print("  2. Follow the testing procedure in tests/ALTIUM_TESTING_PLAN.md")
-    print("  3. Record results in the testing plan document")
-    print("=" * 60)
+    print("To test DelphiScript files in Altium Designer 26:")
+    print("  1. Open Altium Designer")
+    print("  2. Create a new PCB Library (File -> New -> Library -> PCB Library)")
+    print("  3. Go to DXP -> Run Script")
+    print("  4. Browse to a .pas file and click 'Run'")
+    print("  5. The footprint will be created in the current library")
+    print()
+    print("See tests/ALTIUM_TESTING_PLAN.md for detailed testing procedure.")
+    print("=" * 70)
 
 
 if __name__ == "__main__":

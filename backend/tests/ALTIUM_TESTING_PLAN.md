@@ -1,6 +1,6 @@
 # Altium Designer 26 Import Testing Plan
 
-This document outlines the manual testing procedure to validate that generated `.PcbLib` ASCII files import correctly into Altium Designer 26.
+This document outlines the manual testing procedure to validate that generated footprints work correctly in Altium Designer 26.
 
 ## Prerequisites
 
@@ -14,283 +14,77 @@ This document outlines the manual testing procedure to validate that generated `
 
 ### Step 1: Generate Test Files
 
-Run the following Python script from the `backend/` directory to generate test `.PcbLib` files:
-
-```python
-# File: backend/generate_test_files.py
-"""Generate test .PcbLib files for Altium import verification."""
-
-import sys
-sys.path.insert(0, '.')
-
-from models import Footprint, Pad, PadType, PadShape, Drill, DrillType, Via, Outline
-from generator import write_pcblib
-
-# =============================================================================
-# Test Case 1: Simple SMD Footprint (2 pads)
-# =============================================================================
-
-def generate_test_smd_simple():
-    """Minimal SMD footprint to verify basic import."""
-    pads = [
-        Pad(designator="1", x=-1.27, y=0, width=0.6, height=1.0,
-            shape=PadShape.RECTANGULAR, pad_type=PadType.SMD),
-        Pad(designator="2", x=1.27, y=0, width=0.6, height=1.0,
-            shape=PadShape.RECTANGULAR, pad_type=PadType.SMD),
-    ]
-    footprint = Footprint(
-        name="TEST-SMD-SIMPLE",
-        description="Simple 2-pad SMD test footprint",
-        pads=pads,
-        outline=Outline(width=4.0, height=2.0)
-    )
-    write_pcblib(footprint, "test_output/TEST-SMD-SIMPLE.PcbLib")
-    print("Generated: test_output/TEST-SMD-SIMPLE.PcbLib")
-
-# =============================================================================
-# Test Case 2: Through-Hole Footprint with Round Drills
-# =============================================================================
-
-def generate_test_th_round():
-    """Through-hole footprint with round drill holes."""
-    pads = [
-        # Pin 1 with rounded rectangle shape (indicator)
-        Pad(designator="1", x=-2.54, y=0, width=1.5, height=1.5,
-            shape=PadShape.ROUNDED_RECTANGLE, pad_type=PadType.THROUGH_HOLE,
-            drill=Drill(diameter=0.9)),
-        # Regular round pads
-        Pad(designator="2", x=0, y=0, width=1.5, height=1.5,
-            shape=PadShape.ROUND, pad_type=PadType.THROUGH_HOLE,
-            drill=Drill(diameter=0.9)),
-        Pad(designator="3", x=2.54, y=0, width=1.5, height=1.5,
-            shape=PadShape.ROUND, pad_type=PadType.THROUGH_HOLE,
-            drill=Drill(diameter=0.9)),
-    ]
-    footprint = Footprint(
-        name="TEST-TH-ROUND",
-        description="Through-hole test with round drills",
-        pads=pads,
-        outline=Outline(width=8.0, height=3.0)
-    )
-    write_pcblib(footprint, "test_output/TEST-TH-ROUND.PcbLib")
-    print("Generated: test_output/TEST-TH-ROUND.PcbLib")
-
-# =============================================================================
-# Test Case 3: Through-Hole with Slotted Holes
-# =============================================================================
-
-def generate_test_th_slotted():
-    """Through-hole footprint with slotted drill holes."""
-    pads = [
-        # Regular signal pin
-        Pad(designator="1", x=0, y=2.0, width=1.5, height=1.5,
-            shape=PadShape.ROUND, pad_type=PadType.THROUGH_HOLE,
-            drill=Drill(diameter=0.9)),
-        # Slotted mounting holes
-        Pad(designator="SH1", x=-5.0, y=0, width=3.05, height=1.25,
-            rotation=90, shape=PadShape.ROUND, pad_type=PadType.THROUGH_HOLE,
-            drill=Drill(diameter=0.65, slot_length=2.45, drill_type=DrillType.SLOT)),
-        Pad(designator="SH2", x=5.0, y=0, width=3.05, height=1.25,
-            rotation=90, shape=PadShape.ROUND, pad_type=PadType.THROUGH_HOLE,
-            drill=Drill(diameter=0.65, slot_length=2.45, drill_type=DrillType.SLOT)),
-    ]
-    footprint = Footprint(
-        name="TEST-TH-SLOTTED",
-        description="Through-hole test with slotted holes",
-        pads=pads,
-        outline=Outline(width=12.0, height=5.0)
-    )
-    write_pcblib(footprint, "test_output/TEST-TH-SLOTTED.PcbLib")
-    print("Generated: test_output/TEST-TH-SLOTTED.PcbLib")
-
-# =============================================================================
-# Test Case 4: SMD with Thermal Vias (like SO-8EP)
-# =============================================================================
-
-def generate_test_smd_with_vias():
-    """SMD footprint with exposed pad and thermal vias."""
-    pads = [
-        # Signal pads
-        Pad(designator="1", x=-2.5, y=1.27, width=0.6, height=1.2,
-            rotation=90, shape=PadShape.RECTANGULAR, pad_type=PadType.SMD),
-        Pad(designator="2", x=-2.5, y=-1.27, width=0.6, height=1.2,
-            rotation=90, shape=PadShape.RECTANGULAR, pad_type=PadType.SMD),
-        Pad(designator="3", x=2.5, y=-1.27, width=0.6, height=1.2,
-            rotation=90, shape=PadShape.RECTANGULAR, pad_type=PadType.SMD),
-        Pad(designator="4", x=2.5, y=1.27, width=0.6, height=1.2,
-            rotation=90, shape=PadShape.RECTANGULAR, pad_type=PadType.SMD),
-        # Thermal/exposed pad
-        Pad(designator="5", x=0, y=0, width=2.0, height=2.0,
-            shape=PadShape.RECTANGULAR, pad_type=PadType.SMD),
-    ]
-    vias = [
-        Via(x=-0.5, y=0.5, diameter=0.5, drill_diameter=0.2),
-        Via(x=0.5, y=0.5, diameter=0.5, drill_diameter=0.2),
-        Via(x=-0.5, y=-0.5, diameter=0.5, drill_diameter=0.2),
-        Via(x=0.5, y=-0.5, diameter=0.5, drill_diameter=0.2),
-    ]
-    footprint = Footprint(
-        name="TEST-SMD-VIAS",
-        description="SMD with thermal pad and vias",
-        pads=pads,
-        vias=vias,
-        outline=Outline(width=6.0, height=4.0)
-    )
-    write_pcblib(footprint, "test_output/TEST-SMD-VIAS.PcbLib")
-    print("Generated: test_output/TEST-SMD-VIAS.PcbLib")
-
-# =============================================================================
-# Test Case 5: Ground Truth - SO-8EP
-# =============================================================================
-
-def generate_test_so8ep():
-    """SO-8EP footprint matching ground truth data."""
-    # Signal pads (pins 1-8)
-    signal_pads = []
-    y_positions = [1.905, 0.635, -0.635, -1.905]
-
-    # Left side (pins 1-4)
-    for i, y in enumerate(y_positions):
-        signal_pads.append(Pad(
-            designator=str(i + 1),
-            x=-2.498,
-            y=y,
-            width=0.802,
-            height=1.505,
-            rotation=90,
-            shape=PadShape.RECTANGULAR,
-            pad_type=PadType.SMD
-        ))
-
-    # Right side (pins 5-8)
-    for i, y in enumerate(reversed(y_positions)):
-        signal_pads.append(Pad(
-            designator=str(i + 5),
-            x=2.497,
-            y=y,
-            width=0.802,
-            height=1.505,
-            rotation=90,
-            shape=PadShape.RECTANGULAR,
-            pad_type=PadType.SMD
-        ))
-
-    # Thermal pad (pin 9)
-    thermal_pad = Pad(
-        designator="9",
-        x=0,
-        y=0,
-        width=2.613,
-        height=3.502,
-        shape=PadShape.RECTANGULAR,
-        pad_type=PadType.SMD
-    )
-
-    # Thermal vias (2x3 grid)
-    vias = []
-    for x in [-0.55, 0.55]:
-        for y in [-1.1, 0, 1.1]:
-            vias.append(Via(x=x, y=y, diameter=0.5, drill_diameter=0.2))
-
-    footprint = Footprint(
-        name="SO-8EP",
-        description="SOIC-8 with exposed thermal pad - Ground Truth Test",
-        pads=signal_pads + [thermal_pad],
-        vias=vias,
-        outline=Outline(width=5.0, height=4.0)
-    )
-    write_pcblib(footprint, "test_output/SO-8EP.PcbLib")
-    print("Generated: test_output/SO-8EP.PcbLib")
-
-# =============================================================================
-# Test Case 6: All Pad Shapes
-# =============================================================================
-
-def generate_test_all_shapes():
-    """Test all pad shapes in one footprint."""
-    pads = [
-        Pad(designator="1", x=-3.0, y=0, width=1.5, height=1.5,
-            shape=PadShape.ROUND, pad_type=PadType.SMD),
-        Pad(designator="2", x=-1.0, y=0, width=1.0, height=1.5,
-            shape=PadShape.RECTANGULAR, pad_type=PadType.SMD),
-        Pad(designator="3", x=1.0, y=0, width=1.0, height=1.5,
-            shape=PadShape.ROUNDED_RECTANGLE, pad_type=PadType.SMD),
-        Pad(designator="4", x=3.0, y=0, width=0.8, height=1.5,
-            shape=PadShape.OVAL, pad_type=PadType.SMD),
-    ]
-    footprint = Footprint(
-        name="TEST-ALL-SHAPES",
-        description="Test all pad shapes",
-        pads=pads,
-        outline=Outline(width=10.0, height=3.0)
-    )
-    write_pcblib(footprint, "test_output/TEST-ALL-SHAPES.PcbLib")
-    print("Generated: test_output/TEST-ALL-SHAPES.PcbLib")
-
-# =============================================================================
-# Main
-# =============================================================================
-
-if __name__ == "__main__":
-    import os
-    os.makedirs("test_output", exist_ok=True)
-
-    print("Generating test .PcbLib files...")
-    print("=" * 50)
-
-    generate_test_smd_simple()
-    generate_test_th_round()
-    generate_test_th_slotted()
-    generate_test_smd_with_vias()
-    generate_test_so8ep()
-    generate_test_all_shapes()
-
-    print("=" * 50)
-    print("All test files generated in test_output/")
-    print("\nNext: Import each file into Altium Designer 26")
-```
-
-### Step 2: Run the Generator
-
 ```bash
 cd backend
 source venv/bin/activate
 python generate_test_files.py
 ```
 
-This creates 6 test files in `backend/test_output/`:
-1. `TEST-SMD-SIMPLE.PcbLib`
-2. `TEST-TH-ROUND.PcbLib`
-3. `TEST-TH-SLOTTED.PcbLib`
-4. `TEST-SMD-VIAS.PcbLib`
-5. `SO-8EP.PcbLib`
-6. `TEST-ALL-SHAPES.PcbLib`
+This creates files in `backend/test_output/`:
+
+**DelphiScript Files (RECOMMENDED):**
+- `TEST-SMD-SIMPLE.pas`
+- `TEST-TH-ROUND.pas`
+- `TEST-TH-SLOTTED.pas`
+- `TEST-SMD-VIAS.pas`
+- `SO-8EP.pas`
+- `TEST-ALL-SHAPES.pas`
+- `FootprintScripts.PrjScr` (Script Project containing all scripts)
+
+**ASCII Files (Reference only - not functional):**
+- `*.PcbLib` files (kept for format reference, do not import correctly)
 
 ---
 
-## Altium Import Procedure
+## Altium Script Execution Procedure
 
-### Method 1: Direct File Open
+> **Note:** This procedure was validated on Altium Designer 26 (2026-02-11).
 
-1. Open Altium Designer 26
-2. File → Open
-3. Navigate to `backend/test_output/`
-4. Select the `.PcbLib` file
-5. If prompted about file format, select "ASCII PCB Library"
+### Working Procedure (Verified)
 
-### Method 2: Import into Existing Library
+1. **Open Altium Designer 26**
 
-1. Open or create a new PCB Library (`.PcbLib`)
-2. File → Import → ASCII PCB Library (if available)
-3. Select the test file
+2. **Create/Open a PCB Library document**
+   - File → New → Library → PCB Library
+   - Save it (e.g., `TestFootprints.PcbLib`)
+   - **CRITICAL:** The PCB Library must be **open and active** (selected tab)
 
-### Method 3: Paste from ASCII
+3. **Run the script via menu**
+   - Go to **Run → Script** (in the main menu bar)
+   - Browse to `backend/test_output/TEST-SMD-SIMPLE.pas`
+   - Select the script and click **Run**
 
-If direct import fails:
-1. Open the `.PcbLib` file in a text editor
-2. Copy the content between `[Component]` and `End PCB Library`
-3. In Altium, create a new PcbLib component
-4. Edit → Paste Special → ASCII Text
+4. **Verify the footprint was created**
+   - A message box should appear: "Footprint XXX created successfully!"
+   - The footprint should appear in the PCB Library panel
+   - Double-click pads to verify properties
+
+### Alternative: Using Script Project
+
+If you want to run multiple scripts:
+
+1. **Open the Script Project**
+   - File → Open Project
+   - Navigate to `backend/test_output/FootprintScripts.PrjScr`
+   - Click Open
+
+2. **Create a PCB Library document**
+   - File → New → Library → PCB Library
+   - Save it and ensure it's the **active tab**
+
+3. **Run scripts from the project**
+   - In the Projects panel, expand `FootprintScripts.PrjScr`
+   - Double-click on a script to open it
+   - Press **F9** or Run → Run
+
+### Troubleshooting
+
+| Issue | Solution |
+|-------|----------|
+| "Please open a PCB Library document first" | Make sure a .PcbLib is open AND is the active/focused tab |
+| Script doesn't appear in Run → Script | Try browsing directly to the .pas file |
+| F9 doesn't work | Use Run → Script menu instead |
+| Access violation error | Check for unsupported API calls (see Known Limitations) |
 
 ---
 
@@ -298,12 +92,12 @@ If direct import fails:
 
 ### Test Case 1: TEST-SMD-SIMPLE
 
-**Purpose:** Verify basic SMD pad import
+**Purpose:** Verify basic SMD pad creation via script
 
 | Check | Expected | Pass/Fail |
 |-------|----------|-----------|
-| File imports without error | No error dialogs | ☐ |
-| Component name | "TEST-SMD-SIMPLE" | ☐ |
+| Script runs without error | Success message appears | ☐ |
+| Component appears in library | "TEST-SMD-SIMPLE" visible | ☐ |
 | Pad count | 2 pads visible | ☐ |
 | Pad 1 position | X=-1.27mm, Y=0 | ☐ |
 | Pad 2 position | X=1.27mm, Y=0 | ☐ |
@@ -324,7 +118,7 @@ If direct import fails:
 
 | Check | Expected | Pass/Fail |
 |-------|----------|-----------|
-| File imports without error | No error dialogs | ☐ |
+| Script runs without error | Success message appears | ☐ |
 | Pad count | 3 pads visible | ☐ |
 | Pad layer | Multi-Layer | ☐ |
 | Pad 1 shape | Rounded Rectangle | ☐ |
@@ -344,7 +138,7 @@ If direct import fails:
 
 | Check | Expected | Pass/Fail |
 |-------|----------|-----------|
-| File imports without error | No error dialogs | ☐ |
+| Script runs without error | Success message appears | ☐ |
 | Signal pad hole | 0.9mm round | ☐ |
 | SH1 hole type | Slotted | ☐ |
 | SH1 hole size | 0.65mm width | ☐ |
@@ -364,7 +158,7 @@ If direct import fails:
 
 | Check | Expected | Pass/Fail |
 |-------|----------|-----------|
-| File imports without error | No error dialogs | ☐ |
+| Script runs without error | Success message appears | ☐ |
 | SMD pad count | 5 pads | ☐ |
 | Via count | 4 vias | ☐ |
 | Via positions | 2x2 grid at ±0.5mm | ☐ |
@@ -383,7 +177,7 @@ If direct import fails:
 
 | Check | Expected | Pass/Fail |
 |-------|----------|-----------|
-| File imports without error | No error dialogs | ☐ |
+| Script runs without error | Success message appears | ☐ |
 | Total pad count | 9 pads | ☐ |
 | Via count | 6 vias | ☐ |
 | Pin 1 position | X=-2.498mm, Y=1.905mm | ☐ |
@@ -403,7 +197,7 @@ Compare the imported values against `documents/Raw Ground Truth Data - Altium Ex
 
 | Check | Expected | Pass/Fail |
 |-------|----------|-----------|
-| File imports without error | No error dialogs | ☐ |
+| Script runs without error | Success message appears | ☐ |
 | Pad 1 shape | Round/Circular | ☐ |
 | Pad 2 shape | Rectangular | ☐ |
 | Pad 3 shape | Rounded Rectangle | ☐ |
@@ -414,107 +208,113 @@ Compare the imported values against `documents/Raw Ground Truth Data - Altium Ex
 
 ## Troubleshooting
 
-### Issue: "Unrecognized file format"
+### Issue: "Please open a PCB Library document first."
 
-**Possible causes:**
-1. Header format incorrect
-2. Encoding issue (should be UTF-8)
-3. Line endings (try converting to Windows CRLF)
+**Cause:** No PCB Library document is open or active.
 
-**Debug steps:**
-1. Open file in text editor, verify header line is `PCB Library Document`
-2. Check for BOM or encoding issues
-3. Try saving with Windows line endings
+**Fix:**
+1. File → New → Library → PCB Library
+2. Make sure the PCB Library tab is active (not a schematic or PCB document)
+3. Run the script again
 
-### Issue: "Invalid record" or parsing error
+### Issue: Script doesn't appear in Run Script dialog
 
-**Possible causes:**
-1. Missing required field in a record
-2. Field value format incorrect (e.g., missing "mm" suffix)
-3. Section structure invalid
+**Cause:** Script not added to a Script Project.
 
-**Debug steps:**
-1. Compare file structure to working Altium export
-2. Check that all numeric values have units
-3. Verify each `[Section]` has matching fields
+**Fix:**
+1. Create a Script Project (File → New → Project → Script Project)
+2. Right-click project → Add Existing to Project → Select the .pas file
+3. Try File → Run Script again
 
-### Issue: Pads appear but dimensions wrong
+### Issue: "Undeclared identifier" or syntax error
 
-**Possible causes:**
-1. Unit mismatch (mils vs mm)
-2. Coordinate system orientation
-3. Width/Height swapped
+**Cause:** DelphiScript syntax issue or missing API constant.
 
-**Debug steps:**
-1. Verify all dimensions use "mm" suffix
-2. Check coordinate signs (+X right, +Y up)
-3. Compare to ground truth values
+**Fix:**
+1. Check the Altium Messages panel for specific error
+2. Report the exact error message for debugging
 
-### Issue: Vias not visible
+### Issue: Pads appear but positions/sizes are wrong
 
-**Possible causes:**
-1. Via section format incorrect
-2. Via layer assignment wrong
-3. Via size too small to display
+**Cause:** Possible issue with MMsToCoord conversion or coordinate system.
 
 **Debug steps:**
-1. Toggle via visibility in Altium (View menu)
-2. Check via `Layer` is `MultiLayer`
-3. Increase via diameter for testing
+1. Note the actual values in Altium
+2. Compare to expected values in the test case
+3. Report the discrepancy
+
+### Issue: Script runs but nothing appears
+
+**Cause:** Objects may not be added to the correct document.
+
+**Debug steps:**
+1. Check the PCB Library panel (View → Panels → PCB Library)
+2. Try refreshing the view (View → Refresh)
+3. Check if a new component was created in the library list
 
 ---
 
 ## Pass/Fail Criteria
 
 ### Minimum Acceptance (Must Pass All):
-- [ ] At least one test file imports without error
+- [ ] At least TEST-SMD-SIMPLE script runs without error
 - [ ] SMD pads appear on correct layer
-- [ ] TH pads have drill holes
-- [ ] Pad positions match expected values within 0.01mm
+- [ ] Pad positions are correct within 0.01mm
+- [ ] Pad sizes are correct within 0.01mm
 
 ### Full Acceptance (Should Pass All):
-- [ ] All 6 test files import without error
+- [ ] All 6 test scripts run without error
 - [ ] All pad shapes render correctly
+- [ ] TH pads have correct drill holes
 - [ ] Slotted holes display as slots
 - [ ] Vias appear and have correct properties
 - [ ] SO-8EP matches ground truth within 0.05mm
-
-### Known Limitations to Document:
-- Any pad shapes that don't import correctly
-- Any format adjustments needed for import
-- Alternative import methods if direct open fails
 
 ---
 
 ## Results Recording
 
-After testing, update this section with results:
+### Test Run: 2026-02-11
 
-**Test Date:** ________________
+**Test Date:** 2026-02-11
 
-**Altium Version:** Designer 26 Build ____________
+**Altium Version:** Designer 26
 
-**Tester:** ________________
+**Tester:** User
 
-| Test Case | Import Status | Notes |
-|-----------|---------------|-------|
-| TEST-SMD-SIMPLE | ☐ Pass ☐ Fail | |
-| TEST-TH-ROUND | ☐ Pass ☐ Fail | |
-| TEST-TH-SLOTTED | ☐ Pass ☐ Fail | |
-| TEST-SMD-VIAS | ☐ Pass ☐ Fail | |
-| SO-8EP | ☐ Pass ☐ Fail | |
-| TEST-ALL-SHAPES | ☐ Pass ☐ Fail | |
+| Test Case | Script Runs | Footprint Correct | Notes |
+|-----------|-------------|-------------------|-------|
+| TEST-SMD-SIMPLE | ✅ Pass | ✅ Pass | Pads, outline, pin 1 indicator all correct |
+| TEST-TH-ROUND | ✅ Pass | ✅ Pass | Through-hole pads with drills working |
+| TEST-TH-SLOTTED | ✅ Pass | ⚠️ Partial | Slots created but dimensions may be wrong |
+| TEST-SMD-VIAS | ✅ Pass | ✅ Pass | Thermal vias working, outline overlaps pads |
+| SO-8EP | ✅ Pass | ✅ Pass | Ground truth match, outline overlaps pads |
+| TEST-ALL-SHAPES | ✅ Pass | ✅ Pass | Round, rectangular, oval all working |
 
-**Format Adjustments Required:**
--
--
+**Issues Encountered:**
+- Rounded Rectangle pads (`eRoundRectShape`) cause access violation - using rectangular fallback
+- Slotted holes: `HoleLength` property doesn't exist - using `HoleWidth` as workaround
+- Outline dimensions sometimes overlap pads (hardcoded, not calculated from bounds)
 
-**Overall Result:** ☐ PASS ☐ FAIL ☐ PASS WITH MODIFICATIONS
+**Known MVP Limitations:**
+1. Rounded Rectangle pads render as Rectangular (manual corner radius adjustment needed)
+2. Slotted hole length may not be correct (API property unclear)
+3. Script workflow requires: Open library → Run → Script → Browse to .pas file
+
+**Overall Result:** ✅ PASS WITH LIMITATIONS
 
 ---
 
 ## Next Steps After Testing
 
-1. **If all tests pass:** Proceed with extraction.py implementation
-2. **If tests fail:** Document issues, adjust generator.py format, re-test
+1. **If all tests pass:** Proceed with extraction.py implementation (Spike 2)
+2. **If tests fail:** Document issues, adjust generator_delphiscript.py, re-test
 3. **If partial pass:** Document working subset, create issues for failures
+
+---
+
+## References
+
+- [Altium Designer Scripting Documentation](https://www.altium.com/documentation/altium-designer/scripting/writing-scripts)
+- [DelphiScript Reference](https://www.altium.com/documentation/altium-designer/scripting/delphiscript/support)
+- [Scripting Examples](https://www.altium.com/documentation/altium-designer/scripting/examples-reference)
