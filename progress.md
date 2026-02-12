@@ -189,6 +189,7 @@ python run_extraction_test.py ../example_datasheets/so-8ep_crop.png --model haik
 - [x] Header tabs for documentation pages (README, PRD, Technical Decisions)
 - [x] GitHub repository link button in header
 - [x] MarkdownViewer component with styled markdown rendering
+- [x] Mermaid diagram support in documentation (system architecture + user flow diagrams)
 
 ## Day 3: Polish + Testing + Deploy
 

@@ -1,9 +1,11 @@
 # PRD: AI PCB Footprint Generator
 
-**Product Name:** FootprintAI (working title)
-**Document Owner:** Evan Blasband
-**Status:** Draft v0.1 → **Implemented v1.0** (2026-02-12)
-**Target:** MVP Demo for Arena AI
+| | |
+|---|---|
+| **Product Name** | FootprintAI (working title) |
+| **Document Owner** | Evan Blasband |
+| **Status** | Draft v0.1 → **Implemented v1.0** (2026-02-12) |
+| **Target** | MVP Demo for Arena AI |
 
 ---
 
@@ -50,9 +52,11 @@ When an engineer selects a component without an existing PCB footprint:
 3. They create the footprint in their EDA tool pad-by-pad
 4. Errors in interpretation → fabrication issues, rework, schedule slip
 
-**Time cost:** 15-60 minutes per footprint depending on complexity  
-**Error cost:** Incorrect footprint → board re-spin ($5K-50K+ depending on complexity and volume)  
-**Frequency:** Engineers creating 5-20 custom footprints per project is common
+| Metric | Impact |
+|--------|--------|
+| **Time cost** | 15-60 minutes per footprint depending on complexity |
+| **Error cost** | Incorrect footprint → board re-spin ($5K-50K+ depending on complexity and volume) |
+| **Frequency** | Engineers creating 5-20 custom footprints per project is common |
 
 **Why existing solutions fall short:**
 - Manufacturer libraries incomplete for newer/custom parts
@@ -167,8 +171,10 @@ User downloads and imports to Altium
 
 ### 1. Input Processing
 
-**Supported formats:** PNG, JPG, PDF (single page)  
-**Assumed input:** User-cropped image containing the land pattern/recommended PCB layout drawing with dimensions
+| | |
+|---|---|
+| **Supported formats** | PNG, JPG, PDF (single page) |
+| **Assumed input** | User-cropped image containing the land pattern/recommended PCB layout drawing with dimensions |
 
 **Extraction targets:**
 - Pad count and arrangement (linear, grid, peripheral)
@@ -183,7 +189,8 @@ User downloads and imports to Altium
 ### 2. Standard Package Detection
 
 **Method:** Rules-based pattern matching on extracted text + geometry
-- Regex on package codes: `QFN`, `QFP`, `SOIC`, `TSSOP`, `BGA`, `0402`, `0603`, `SOT-23`, etc.
+
+- Regex on package codes: `QFN, QFP, SOIC, TSSOP, BGA, 0402, 0603, SOT-23, etc.`
 - If detected, present option to exit and use Altium's built-in IPC Footprint Wizard
 
 **Rationale:** Avoid AI cost/error for cases where deterministic calculation suffices.
@@ -226,9 +233,11 @@ User downloads and imports to Altium
 
 ### 5. Pin Assignment
 
-**Input:** Manual entry or paste from spreadsheet  
-**Format:** Pin number → pad position mapping  
-**AI assist:** If full datasheet context provided, attempt to extract pin names from pin description table
+| | |
+|---|---|
+| **Input** | Manual entry or paste from spreadsheet |
+| **Format** | Pin number → pad position mapping |
+| **AI assist** | If full datasheet context provided, attempt to extract pin names from pin description table |
 
 ### 6. Footprint Generation
 
@@ -246,7 +255,7 @@ User downloads and imports to Altium
 
 **Deferred elements (use Altium defaults post-import):**
 - Solder paste mask (expansion/contraction)
-- Solder mask expansion  
+- Solder mask expansion
 - Courtyard/assembly layers
 - 3D body
 - Thermal pad paste windowing
@@ -263,13 +272,96 @@ User downloads and imports to Altium
 
 ## Technical Architecture
 
+### System Architecture Diagram
+
+```mermaid
+flowchart TB
+    subgraph Frontend["Frontend (React + Tailwind)"]
+        UP[UploadPanel]
+        CP[ControlPanel]
+        PC[PreviewCanvas]
+        DT[DimensionTable]
+        MV[MarkdownViewer]
+    end
+
+    subgraph Backend["Backend (FastAPI)"]
+        MA[main.py<br/>API Routes]
+        EX[extraction.py<br/>Claude Vision]
+        GEN[generator_delphiscript.py<br/>Script Generator]
+        MOD[models.py<br/>Pydantic Models]
+        PR[prompts.py<br/>AI Prompts]
+    end
+
+    subgraph External["External Services"]
+        CLAUDE[Claude Vision API<br/>Sonnet/Haiku/Opus]
+        ALTIUM[Altium Designer 26]
+    end
+
+    UP -->|POST /api/upload| MA
+    CP -->|GET /api/extract| MA
+    CP -->|POST /api/confirm| MA
+    CP -->|GET /api/generate| MA
+    MA --> EX
+    EX -->|Vision Request| CLAUDE
+    CLAUDE -->|JSON Response| EX
+    EX --> MOD
+    MA --> GEN
+    GEN -->|.zip package| CP
+    CP -->|Download| ALTIUM
+    MA --> PC
+    MA --> DT
+```
+
+### User Flow Diagram
+
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant F as Frontend
+    participant B as Backend
+    participant C as Claude API
+    participant A as Altium
+
+    U->>F: Upload datasheet images
+    F->>B: POST /api/upload (images[])
+    B-->>F: job_id
+
+    U->>F: Click "Extract"
+    F->>B: GET /api/extract/{job_id}
+    B->>C: Vision API (images + prompt)
+    C-->>B: JSON (pads, outline, confidence)
+    B-->>F: ExtractionResult
+
+    F->>F: Display preview + dimensions
+    Note over F: Highlight low-confidence values
+
+    alt Pin 1 uncertain
+        U->>F: Click to select Pin 1
+    end
+
+    U->>F: Click "Confirm"
+    F->>B: POST /api/confirm/{job_id}
+    B-->>F: confirmed
+
+    U->>F: Click "Download"
+    F->>B: GET /api/generate/{job_id}
+    B->>B: Generate DelphiScript
+    B-->>F: Script Project (.zip)
+
+    U->>A: Extract & open .PrjScr
+    U->>A: Run script
+    A->>A: Create footprint
+```
+
 ### Stack
 
-**Frontend:** React + Tailwind CSS  
-**Backend:** Python FastAPI  
-**AI:** Anthropic API (Claude Haiku vision, upgradeable)  
-**Hosting:** Railway  
-**File generation:** Python library generating Altium ASCII format
+| Layer | Technology |
+|-------|------------|
+| **Frontend** | React + Tailwind CSS |
+| **Backend** | Python FastAPI |
+| **AI** | Anthropic API (Claude Sonnet default, Haiku/Opus available) |
+| **Hosting** | Railway (local first) |
+| **File generation** | DelphiScript (.pas) generator |
 
 ### API Endpoints
 
@@ -384,22 +476,31 @@ See `technical_decisions.md` TD-001 for full rationale.
 ## Technical Spikes (Pre-Build)
 
 ### Spike 1: Altium 26 ASCII Format Validation
-**Goal:** Confirm ASCII footprint format imports correctly into Altium Designer 26.  
-**Method:** Manually create test footprints (SMD rectangular, SMD oval, through-hole) in ASCII, import into Altium 26, verify pad properties including drill holes.  
-**Output:** Documented format spec, working example files for each pad type.  
-**Time:** 2-4 hours
 
-### Spike 2: Vision Model Accuracy Test  
-**Goal:** Assess Claude Haiku's ability to extract dimensions from datasheet drawings.  
-**Method:** Run 5-10 sample datasheet images through Haiku, compare extracted values to ground truth.  
-**Output:** Accuracy assessment, prompt refinement, decision on model tier.  
-**Time:** 4-6 hours
+| | |
+|---|---|
+| **Goal** | Confirm ASCII footprint format imports correctly into Altium Designer 26 |
+| **Method** | Manually create test footprints (SMD rectangular, SMD oval, through-hole) in ASCII, import into Altium 26, verify pad properties including drill holes |
+| **Output** | Documented format spec, working example files for each pad type |
+| **Time** | 2-4 hours |
+
+### Spike 2: Vision Model Accuracy Test
+
+| | |
+|---|---|
+| **Goal** | Assess Claude Haiku's ability to extract dimensions from datasheet drawings |
+| **Method** | Run 5-10 sample datasheet images through Haiku, compare extracted values to ground truth |
+| **Output** | Accuracy assessment, prompt refinement, decision on model tier |
+| **Time** | 4-6 hours |
 
 ### Spike 3: Dimension Extraction Prompt Engineering
-**Goal:** Develop structured prompt that reliably extracts pad geometry.  
-**Method:** Iterate on prompt with few-shot examples, test against varied drawing styles.  
-**Output:** Production prompt template, JSON schema for response.  
-**Time:** 4-8 hours
+
+| | |
+|---|---|
+| **Goal** | Develop structured prompt that reliably extracts pad geometry |
+| **Method** | Iterate on prompt with few-shot examples, test against varied drawing styles |
+| **Output** | Production prompt template, JSON schema for response |
+| **Time** | 4-8 hours |
 
 ---
 
@@ -533,11 +634,13 @@ See `technical_decisions.md` TD-001 for full rationale.
 
 ## Future Roadmap
 
-**V1.1:** Full PDF parsing (find land pattern page automatically)  
-**V1.2:** KiCad export  
-**V2.0:** Batch processing, user accounts, saved library  
-**V2.1:** Direct EDA tool plugin (Altium extension)  
-**V3.0:** 3D model generation from package drawings
+| Version | Features |
+|---------|----------|
+| **V1.1** | Full PDF parsing (find land pattern page automatically) |
+| **V1.2** | KiCad export |
+| **V2.0** | Batch processing, user accounts, saved library |
+| **V2.1** | Direct EDA tool plugin (Altium extension) |
+| **V3.0** | 3D model generation from package drawings |
 
 ---
 

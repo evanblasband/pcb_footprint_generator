@@ -1,11 +1,107 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import mermaid from 'mermaid'
+
+// Initialize mermaid with dark theme
+mermaid.initialize({
+  startOnLoad: false,
+  theme: 'dark',
+  themeVariables: {
+    // Node colors - lime accent with dark text (readable)
+    primaryColor: '#e6fb53',
+    primaryTextColor: '#0d0d0d',
+    primaryBorderColor: '#e6fb53',
+    // Secondary/tertiary nodes - darker bg with light text
+    secondaryColor: '#374151',
+    secondaryTextColor: '#e5e5e5',
+    tertiaryColor: '#4b5563',
+    tertiaryTextColor: '#e5e5e5',
+    // General colors
+    lineColor: '#a3a3a3',
+    background: '#1a1a1a',
+    mainBkg: '#374151',
+    secondBkg: '#4b5563',
+    textColor: '#e5e5e5',
+    // Node text should be light on dark backgrounds
+    nodeBorder: '#e6fb53',
+    clusterBkg: '#262626',
+    clusterBorder: '#e6fb53',
+    // Sequence diagram colors
+    actorTextColor: '#e5e5e5',
+    actorBkg: '#374151',
+    actorBorder: '#e6fb53',
+    signalColor: '#e5e5e5',
+    signalTextColor: '#e5e5e5',
+    messageTextColor: '#e5e5e5',
+    labelBoxBkgColor: '#374151',
+    labelBoxBorderColor: '#e6fb53',
+    labelTextColor: '#e5e5e5',
+    loopTextColor: '#e5e5e5',
+    sequenceNumberColor: '#e5e5e5',
+    noteBkgColor: '#4b5563',
+    noteTextColor: '#e5e5e5',
+    noteBorderColor: '#e6fb53',
+    activationBkgColor: '#374151',
+    activationBorderColor: '#e6fb53',
+  },
+  flowchart: {
+    htmlLabels: true,
+    curve: 'basis',
+  },
+})
+
+/**
+ * Component to render Mermaid diagrams.
+ * Uses unique IDs to prevent conflicts when multiple diagrams exist.
+ */
+function MermaidDiagram({ chart }) {
+  const containerRef = useRef(null)
+  const [svg, setSvg] = useState('')
+  const [error, setError] = useState(null)
+
+  useEffect(() => {
+    const renderDiagram = async () => {
+      if (!chart || !containerRef.current) return
+
+      try {
+        // Generate unique ID for this diagram
+        const id = `mermaid-${Math.random().toString(36).substring(2, 11)}`
+        const { svg } = await mermaid.render(id, chart)
+        setSvg(svg)
+        setError(null)
+      } catch (err) {
+        console.error('Mermaid render error:', err)
+        setError(err.message)
+      }
+    }
+
+    renderDiagram()
+  }, [chart])
+
+  if (error) {
+    return (
+      <div className="bg-bg-tertiary p-4 rounded-lg mb-4 border border-error">
+        <p className="text-error text-sm mb-2">Failed to render diagram:</p>
+        <pre className="text-xs text-text-secondary overflow-x-auto">{chart}</pre>
+      </div>
+    )
+  }
+
+  return (
+    <div
+      ref={containerRef}
+      className="bg-bg-tertiary p-4 rounded-lg mb-4 overflow-x-auto flex justify-center"
+      dangerouslySetInnerHTML={{ __html: svg }}
+    />
+  )
+}
 
 /**
  * Component to fetch and render markdown documentation.
+ * Supports GitHub Flavored Markdown and Mermaid diagrams.
  */
-function MarkdownViewer({ docName, title }) {
+function MarkdownViewer({ docName }) {
   const [content, setContent] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -105,7 +201,16 @@ function MarkdownViewer({ docName, title }) {
                 {children}
               </a>
             ),
-            code: ({ inline, children }) => {
+            // Handle code blocks - check for mermaid language
+            code: ({ inline, className, children }) => {
+              const match = /language-(\w+)/.exec(className || '')
+              const language = match ? match[1] : ''
+
+              // Render mermaid diagrams
+              if (!inline && language === 'mermaid') {
+                return <MermaidDiagram chart={String(children).trim()} />
+              }
+
               if (inline) {
                 return (
                   <code className="bg-bg-tertiary text-accent px-1.5 py-0.5 rounded text-sm font-mono">
@@ -119,11 +224,17 @@ function MarkdownViewer({ docName, title }) {
                 </code>
               )
             },
-            pre: ({ children }) => (
-              <pre className="bg-bg-tertiary p-4 rounded-lg overflow-x-auto mb-4">
-                {children}
-              </pre>
-            ),
+            pre: ({ children }) => {
+              // Check if the child is a mermaid diagram (already rendered)
+              if (children?.props?.className?.includes('language-mermaid')) {
+                return <>{children}</>
+              }
+              return (
+                <pre className="bg-bg-tertiary p-4 rounded-lg overflow-x-auto mb-4">
+                  {children}
+                </pre>
+              )
+            },
             blockquote: ({ children }) => (
               <blockquote className="border-l-4 border-accent pl-4 italic text-text-secondary mb-4">
                 {children}

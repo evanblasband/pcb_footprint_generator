@@ -25,7 +25,7 @@ Hardware engineers frequently encounter components without existing PCB footprin
 - **2D Preview**: Visual verification with zoom/pan and pad spacing dimensions
 - **Part Number Input**: Custom filename for downloads
 - **Altium Export**: Script Project package (.zip) with .PrjScr and .pas files
-- **In-App Documentation**: Tabs for README, PRD, and Technical Decisions
+- **In-App Documentation**: Tabs for README, PRD, and Technical Decisions with Mermaid diagram support
 
 ## Tech Stack
 

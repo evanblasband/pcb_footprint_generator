@@ -592,8 +592,36 @@ Add header tabs that display markdown documentation rendered within the app.
 
 ---
 
+## TD-014: Mermaid Diagram Support in Documentation
+
+**Date:** 2026-02-12
+**Status:** Implemented
+
+### Context
+The PRD needed visual diagrams to illustrate system architecture and user flow. Mermaid is a popular markdown-based diagramming tool.
+
+### Decision
+Add Mermaid diagram rendering to the MarkdownViewer component.
+
+### Implementation
+1. Installed `mermaid` npm package
+2. Added `MermaidDiagram` component that renders charts client-side
+3. Custom code block handler detects `language-mermaid` and renders diagrams
+4. Dark theme configuration matches app styling (lime accent, dark background)
+
+### Diagrams Added to PRD
+1. **System Architecture Flowchart** - Shows frontend components, backend modules, and external services
+2. **User Flow Sequence Diagram** - Shows step-by-step interaction from upload to Altium import
+
+### Consequences
+- Bundle size increased (~400KB gzipped for Mermaid + diagram types)
+- Diagrams render client-side with dark theme styling
+- Visual documentation improves understanding of system
+
+---
+
 ## Future Decisions (To Be Made)
 
-- **TD-014:** Production deployment strategy (Railway configuration)
-- **TD-015:** Rate limiting and abuse prevention
-- **TD-016:** Error recovery for partial extractions
+- **TD-015:** Production deployment strategy (Railway configuration)
+- **TD-016:** Rate limiting and abuse prevention
+- **TD-017:** Error recovery for partial extractions
