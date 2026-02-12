@@ -12,7 +12,10 @@ function PreviewCanvas({ footprint, selectedPin1, pin1Required, onSelectPin1 }) 
   const [zoomLevel, setZoomLevel] = useState(1) // User zoom multiplier
   const [offset, setOffset] = useState({ x: 0, y: 0 })
   const [baseOffset, setBaseOffset] = useState({ x: 0, y: 0 }) // Offset for fit view
+  const [panOffset, setPanOffset] = useState({ x: 0, y: 0 }) // User pan offset
   const [hoveredPad, setHoveredPad] = useState(null)
+  const [isDragging, setIsDragging] = useState(false)
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
 
   // Coordinate conversion (mm to canvas pixels)
   const MM_TO_PX = 50 // 50 pixels per mm
@@ -71,8 +74,11 @@ function PreviewCanvas({ footprint, selectedPin1, pin1Required, onSelectPin1 }) 
     setBaseScale(fitScale)
     setBaseOffset(fitOffset)
     setScale(fitScale * zoomLevel)
-    setOffset(fitOffset)
-  }, [footprint, zoomLevel])
+    setOffset({
+      x: fitOffset.x + panOffset.x,
+      y: fitOffset.y + panOffset.y,
+    })
+  }, [footprint, zoomLevel, panOffset])
 
   // Recalculate on footprint change or resize
   useEffect(() => {
@@ -98,10 +104,11 @@ function PreviewCanvas({ footprint, selectedPin1, pin1Required, onSelectPin1 }) 
   }, [])
 
   /**
-   * Reset zoom to fit.
+   * Reset zoom and pan to fit.
    */
   const handleResetZoom = useCallback(() => {
     setZoomLevel(1)
+    setPanOffset({ x: 0, y: 0 })
   }, [])
 
   /**
@@ -111,6 +118,31 @@ function PreviewCanvas({ footprint, selectedPin1, pin1Required, onSelectPin1 }) 
     e.preventDefault()
     const delta = e.deltaY > 0 ? -ZOOM_STEP : ZOOM_STEP
     setZoomLevel(prev => Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, prev + delta)))
+  }, [])
+
+  /**
+   * Handle mouse down for drag start.
+   */
+  const handleMouseDown = useCallback((e) => {
+    // Only start drag with left mouse button and not when selecting Pin 1
+    if (e.button === 0 && !pin1Required) {
+      setIsDragging(true)
+      setDragStart({ x: e.clientX, y: e.clientY })
+    }
+  }, [pin1Required])
+
+  /**
+   * Handle mouse up to end drag.
+   */
+  const handleMouseUp = useCallback(() => {
+    setIsDragging(false)
+  }, [])
+
+  /**
+   * Handle mouse leave to end drag.
+   */
+  const handleMouseLeave = useCallback(() => {
+    setIsDragging(false)
   }, [])
 
   /**
@@ -165,9 +197,21 @@ function PreviewCanvas({ footprint, selectedPin1, pin1Required, onSelectPin1 }) 
   }, [footprint, scale, offset, selectedPin1, hoveredPad, pin1Required])
 
   /**
-   * Handle mouse move for hover detection.
+   * Handle mouse move for hover detection and dragging.
    */
   const handleMouseMove = useCallback((e) => {
+    // Handle dragging
+    if (isDragging) {
+      const deltaX = e.clientX - dragStart.x
+      const deltaY = e.clientY - dragStart.y
+      setPanOffset(prev => ({
+        x: prev.x + deltaX,
+        y: prev.y + deltaY,
+      }))
+      setDragStart({ x: e.clientX, y: e.clientY })
+      return
+    }
+
     if (!footprint?.pads?.length || !canvasRef.current) return
 
     const rect = canvasRef.current.getBoundingClientRect()
@@ -194,7 +238,7 @@ function PreviewCanvas({ footprint, selectedPin1, pin1Required, onSelectPin1 }) 
     })
 
     setHoveredPad(found)
-  }, [footprint, offset, scale])
+  }, [footprint, offset, scale, isDragging, dragStart])
 
   /**
    * Handle click for Pin 1 selection.
@@ -205,15 +249,25 @@ function PreviewCanvas({ footprint, selectedPin1, pin1Required, onSelectPin1 }) 
     }
   }, [pin1Required, hoveredPad, onSelectPin1])
 
+  // Determine cursor style
+  const getCursor = () => {
+    if (isDragging) return 'grabbing'
+    if (pin1Required && hoveredPad !== null) return 'pointer'
+    return 'grab'
+  }
+
   return (
     <div
       ref={containerRef}
       className="w-full h-full relative"
-      style={{ cursor: pin1Required && hoveredPad !== null ? 'pointer' : 'default' }}
+      style={{ cursor: getCursor() }}
     >
       <canvas
         ref={canvasRef}
         onMouseMove={handleMouseMove}
+        onMouseDown={handleMouseDown}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseLeave}
         onClick={handleClick}
         onWheel={handleWheel}
         className="w-full h-full"
