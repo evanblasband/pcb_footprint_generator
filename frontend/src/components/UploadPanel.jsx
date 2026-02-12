@@ -1,12 +1,39 @@
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 
 /**
  * Drag-and-drop upload panel for datasheet images.
+ * Supports drag-drop, file browse, and clipboard paste (Ctrl+V / Cmd+V).
  */
 function UploadPanel({ onUpload }) {
   const [isDragging, setIsDragging] = useState(false)
   const [preview, setPreview] = useState(null)
   const fileInputRef = useRef(null)
+  const containerRef = useRef(null)
+
+  /**
+   * Handle paste events for clipboard image upload.
+   */
+  const handlePaste = useCallback((e) => {
+    const items = e.clipboardData?.items
+    if (!items) return
+
+    for (const item of items) {
+      if (item.type.startsWith('image/')) {
+        e.preventDefault()
+        const file = item.getAsFile()
+        if (file) {
+          handleFile(file)
+        }
+        return
+      }
+    }
+  }, [])
+
+  // Listen for paste events on the document
+  useEffect(() => {
+    document.addEventListener('paste', handlePaste)
+    return () => document.removeEventListener('paste', handlePaste)
+  }, [handlePaste])
 
   const handleDragOver = useCallback((e) => {
     e.preventDefault()
@@ -36,12 +63,15 @@ function UploadPanel({ onUpload }) {
   }, [])
 
   const handleFile = (file) => {
+    // Generate a name for pasted images (they come without names)
+    const fileName = file.name || `pasted-image-${Date.now()}.png`
+
     // Show preview
     const reader = new FileReader()
     reader.onload = (e) => {
       setPreview({
         url: e.target.result,
-        name: file.name,
+        name: fileName,
         size: (file.size / 1024).toFixed(1) + ' KB',
       })
     }
@@ -62,6 +92,7 @@ function UploadPanel({ onUpload }) {
       </h2>
 
       <div
+        ref={containerRef}
         onClick={handleClick}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
@@ -111,10 +142,13 @@ function UploadPanel({ onUpload }) {
               </svg>
             </div>
             <p className="text-text-primary mb-2">
-              Drop image here or click to browse
+              Drop, paste, or click to upload
             </p>
             <p className="text-sm text-text-secondary">
               PNG, JPEG, GIF, or WebP up to 10MB
+            </p>
+            <p className="text-xs text-text-muted mt-2">
+              Ctrl+V / Cmd+V to paste from clipboard
             </p>
           </>
         )}
