@@ -325,13 +325,39 @@ function drawPad(ctx, pad, index, scale, offset, MM_TO_PX, isPin1, isHovered, pi
   ctx.textBaseline = 'middle'
   ctx.fillText(pad.designator || String(index + 1), x, y)
 
-  // Draw Pin 1 indicator
+  // Draw Pin 1 indicator - small solid dot outside the pad
   if (isPin1) {
-    ctx.strokeStyle = '#e6fb53'
-    ctx.lineWidth = 2
+    const dotRadius = 4 * scale // Small dot
+    const padRadius = Math.max(w, h) / 2
+
+    // Position dot outside the pad, away from center (0,0)
+    // Determine direction based on pad position
+    const dirX = pad.x < 0 ? -1 : (pad.x > 0 ? 1 : 0)
+    const dirY = pad.y < 0 ? -1 : (pad.y > 0 ? 1 : 0)
+
+    // Offset from pad edge
+    const offsetDist = (padRadius + dotRadius + 6 * scale)
+    let dotX = x
+    let dotY = y
+
+    // Place dot in the corner direction (outside the footprint)
+    if (dirX !== 0) {
+      dotX = x + dirX * offsetDist
+    }
+    if (dirY !== 0) {
+      dotY = y - dirY * offsetDist // Flip Y for canvas
+    }
+    // If pad is at origin, default to upper-left
+    if (dirX === 0 && dirY === 0) {
+      dotX = x - offsetDist
+      dotY = y - offsetDist
+    }
+
+    // Draw filled dot
+    ctx.fillStyle = '#e6fb53'
     ctx.beginPath()
-    ctx.arc(x, y, Math.max(w, h) / 2 + 4, 0, Math.PI * 2)
-    ctx.stroke()
+    ctx.arc(dotX, dotY, dotRadius, 0, Math.PI * 2)
+    ctx.fill()
   }
 }
 

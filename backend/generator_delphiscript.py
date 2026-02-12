@@ -325,25 +325,37 @@ class DelphiScriptGenerator:
             output.write("    End;\n\n")
 
     def _write_pin1_indicator(self, output: TextIO) -> None:
-        """Write code to create Pin 1 indicator arc."""
+        """Write code to create Pin 1 indicator - small filled dot outside pad."""
         pin1 = self._find_pin1()
         if not pin1:
             return
 
-        # Offset indicator from pad
-        ind_x = pin1.x - 0.5 if pin1.x < 0 else pin1.x + 0.5
-        ind_y = pin1.y + 0.5 if pin1.y > 0 else pin1.y - 0.5
+        # Calculate position outside Pin 1 pad
+        # Direction is away from origin (component center)
+        dir_x = -1 if pin1.x < 0 else (1 if pin1.x > 0 else -1)
+        dir_y = -1 if pin1.y < 0 else (1 if pin1.y > 0 else 1)
 
-        output.write("    // --- Pin 1 Indicator ---\n")
+        # Offset from pad edge (half pad size + gap + dot radius)
+        pad_half_w = pin1.width / 2 if pin1.width else 0.3
+        pad_half_h = pin1.height / 2 if pin1.height else 0.3
+        gap = 0.2  # Gap between pad and dot
+        dot_radius = 0.15  # Small dot
+
+        # Position outside the pad
+        ind_x = pin1.x + dir_x * (pad_half_w + gap + dot_radius)
+        ind_y = pin1.y + dir_y * (pad_half_h + gap + dot_radius)
+
+        output.write("    // --- Pin 1 Indicator (filled dot) ---\n")
         output.write("    Arc := PCBServer.PCBObjectFactory(eArcObject, eNoDimension, eCreate_Default);\n")
         output.write("    If Arc <> Nil Then\n")
         output.write("    Begin\n")
         output.write(f"        Arc.XCenter := MMsToCoord({ind_x:.4f});\n")
         output.write(f"        Arc.YCenter := MMsToCoord({ind_y:.4f});\n")
-        output.write("        Arc.Radius := MMsToCoord(0.25);\n")
+        output.write(f"        Arc.Radius := MMsToCoord({dot_radius:.4f});\n")
         output.write("        Arc.StartAngle := 0;\n")
         output.write("        Arc.EndAngle := 360;\n")
-        output.write("        Arc.LineWidth := MMsToCoord(0.15);\n")
+        # Line width >= 2*radius creates a filled circle
+        output.write(f"        Arc.LineWidth := MMsToCoord({dot_radius * 2:.4f});\n")
         output.write(f"        Arc.Layer := {LAYER_TOP_OVERLAY};\n")
         output.write("        NewComp.AddPCBObject(Arc);\n")
         output.write("    End;\n\n")
