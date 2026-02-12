@@ -193,6 +193,39 @@ Datasheets show TWO different types of measurements. Confusing them is a critica
 - SMD pads: Surface mount, no drill hole
 - TH pads: Through-hole, have a drill diameter
 
+### Through-Hole Pads: Drill vs Pad Size
+For through-hole pads, there are TWO different diameters:
+
+1. **Drill diameter (⌀):** The hole drilled through the PCB
+   - Shown with ⌀ symbol in datasheets
+   - Typically 0.8mm - 1.2mm for signal pins, 3.0mm+ for mounting
+   - This goes in the `drill_diameter` field
+
+2. **Pad diameter:** The copper annular ring around the hole
+   - ALWAYS LARGER than the drill diameter
+   - Typically drill + 0.5mm to 0.8mm
+   - For round pads: width = height = pad diameter
+   - This goes in the `width` and `height` fields
+
+**CRITICAL:** Do NOT use the pitch/spacing (distance between holes) for pad diameter!
+- If holes are spaced 1.27mm apart, the PAD diameter is NOT 1.27mm
+- The pad diameter is typically 1.5mm-2.5mm depending on drill size
+- Look for dimension callouts pointing to the EDGE of a single pad, not between pads
+
+### Hole Count Notation
+Datasheets use format: "⌀diameter × count" (e.g., "⌀0.90 × 14")
+- This means COUNT holes have DRILL DIAMETER of that size
+- The PAD diameter will be larger (add ~0.5-0.6mm for annular ring)
+- Pattern match which holes in the drawing correspond to each size
+
+### Extract ALL Holes (Not Just Labeled Pins)
+Include EVERY hole visible in the footprint drawing:
+- **Signal pins:** Numbered pads (1, 2, 3...) for electrical connections
+- **Mounting holes:** Large unlabeled holes (often ⌀3.0-3.5mm) - use "MH1", "MH2"
+- **Shield/alignment holes:** Medium unlabeled holes - use "SH1", "SH2"
+- **Unlabeled holes** are still part of the footprint - assign designators based on position
+- Count ALL circles/holes in the drawing, labeled or not
+
 ### Pin 1 Identification
 Look for these indicators:
 - Dot or circle marker

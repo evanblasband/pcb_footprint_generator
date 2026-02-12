@@ -46,6 +46,123 @@ SO_8EP_GROUND_TRUTH = {
     ]
 }
 
+# RJ45 Connector ground truth (LPJG0926HENL)
+# From documents/Raw Ground Truth Data - Altium Exports.pdf
+# 22 total pads: pins 1-20 + Un1, Un2 (mounting)
+RJ45_GROUND_TRUTH = {
+    "name": "RJ45",
+    "pad_count": 22,
+    "expected_pads": [
+        # Signal pins - 0.9mm drill, 1.5mm pad diameter
+        {"designator": "1", "x": -5.715, "y": 8.89, "width": 1.5, "height": 1.5, "drill": 0.9, "shape": "rounded_rectangle"},
+        {"designator": "2", "x": -4.445, "y": 6.35, "width": 1.5, "height": 1.5, "drill": 0.9, "shape": "round"},
+        {"designator": "3", "x": -3.175, "y": 8.89, "width": 1.5, "height": 1.5, "drill": 0.9, "shape": "round"},
+        {"designator": "4", "x": -1.905, "y": 6.35, "width": 1.5, "height": 1.5, "drill": 0.9, "shape": "round"},
+        {"designator": "5", "x": -0.635, "y": 8.89, "width": 1.5, "height": 1.5, "drill": 0.9, "shape": "round"},
+        {"designator": "6", "x": 0.635, "y": 6.35, "width": 1.5, "height": 1.5, "drill": 0.9, "shape": "round"},
+        {"designator": "7", "x": 1.905, "y": 8.89, "width": 1.5, "height": 1.5, "drill": 0.9, "shape": "round"},
+        {"designator": "8", "x": 3.175, "y": 6.35, "width": 1.5, "height": 1.5, "drill": 0.9, "shape": "round"},
+        {"designator": "9", "x": 4.445, "y": 8.89, "width": 1.5, "height": 1.5, "drill": 0.9, "shape": "round"},
+        {"designator": "10", "x": 5.715, "y": 6.35, "width": 1.5, "height": 1.5, "drill": 0.9, "shape": "round"},
+        {"designator": "11", "x": -5.715, "y": 3.83, "width": 1.5, "height": 1.5, "drill": 0.9, "shape": "round"},
+        {"designator": "12", "x": -3.175, "y": 2.56, "width": 1.5, "height": 1.5, "drill": 0.9, "shape": "round"},
+        {"designator": "13", "x": 3.175, "y": 2.56, "width": 1.5, "height": 1.5, "drill": 0.9, "shape": "round"},
+        {"designator": "14", "x": 5.715, "y": 3.83, "width": 1.5, "height": 1.5, "drill": 0.9, "shape": "round"},
+        # Bottom row pins - 1.02mm drill
+        {"designator": "15", "x": -6.63, "y": -4.06, "width": 1.5, "height": 1.5, "drill": 1.02, "shape": "round"},
+        {"designator": "16", "x": -4.09, "y": -4.06, "width": 1.5, "height": 1.5, "drill": 1.02, "shape": "round"},
+        {"designator": "17", "x": 4.09, "y": -4.06, "width": 1.5, "height": 1.5, "drill": 1.02, "shape": "round"},
+        {"designator": "18", "x": 6.63, "y": -4.06, "width": 1.5, "height": 1.5, "drill": 1.02, "shape": "round"},
+        # Larger pins - 1.7mm drill, 2.5mm pad
+        {"designator": "19", "x": -7.875, "y": 3.05, "width": 2.5, "height": 2.5, "drill": 1.7, "shape": "round"},
+        {"designator": "20", "x": 7.875, "y": 3.05, "width": 2.5, "height": 2.5, "drill": 1.7, "shape": "round"},
+        # Mounting holes - 3.2mm drill, 3.2mm pad
+        {"designator": "Un1", "x": -5.715, "y": 0, "width": 3.2, "height": 3.2, "drill": 3.2, "shape": "round"},
+        {"designator": "Un2", "x": 5.715, "y": 0, "width": 3.2, "height": 3.2, "drill": 3.2, "shape": "round"},
+    ],
+    "notes": [
+        "22 total: pins 1-20 + Un1/Un2 mounting holes",
+        "Drill sizes: 0.9mm (1-14), 1.02mm (15-18), 1.7mm (19-20), 3.2mm (Un1-Un2)",
+        "Pin 1 has rounded rectangle shape for identification",
+    ]
+}
+
+# USB 3.0 Connector ground truth (GSB3115XXXXF1HR)
+# From documents/Raw Ground Truth Data - Altium Exports.pdf
+# Has slotted mounting holes (SH1-SH4)
+USB3_GROUND_TRUTH = {
+    "name": "USB3",
+    "pad_count": None,  # Need to count from full PDF
+    "expected_pads": [
+        # Signal pin 1
+        {"designator": "1", "x": -3.5, "y": -0.57, "width": 1.25, "height": 1.25, "drill": 0.75, "shape": "rectangular"},
+        # Slotted mounting holes
+        {"designator": "SH1", "x": -6.4, "y": 0, "width": 3.05, "height": 1.25, "drill": 0.65, "slot_length": 2.45, "shape": "round"},
+        {"designator": "SH2", "x": 6.4, "y": 0, "width": 3.05, "height": 1.25, "drill": 0.65, "slot_length": 2.45, "shape": "round"},
+        {"designator": "SH3", "x": -7.8, "y": -7.5, "width": 2.15, "height": 1.075, "drill": 0.65, "slot_length": 1.65, "shape": "round"},
+        {"designator": "SH4", "x": 7.8, "y": -7.5, "width": 2.15, "height": 1.075, "drill": 0.65, "slot_length": 1.65, "shape": "round"},
+    ],
+    "notes": [
+        "Has slotted mounting holes (SH1-SH4)",
+        "SH1/SH2: 2.45mm slot length, 0.65mm drill width",
+        "SH3/SH4: 1.65mm slot length, 0.65mm drill width",
+        "Full pad list not available in ground truth PDF",
+    ]
+}
+
+# M.2 Mini PCIe ground truth
+# Note: Full ground truth not available in PDF - only partial dimensions visible
+M2_GROUND_TRUTH = {
+    "name": "M2_MINI_PCIE",
+    "pad_count": 75,  # 75 signal pads + mounting holes
+    "expected_pads": [
+        # Only corner pads are typically dimensioned in datasheets
+        # Full ground truth would need to be extracted from Altium
+    ],
+    "notes": [
+        "SMD edge connector with 75 signal pads",
+        "0.5mm pitch between pads",
+        "Pad size approximately 0.35mm x 2.75mm",
+        "Ground truth PDF does not include M.2 data",
+        "Extraction challenge: datasheets often only dimension corner pads",
+    ]
+}
+
+# Samtec HLE ground truth
+# Note: Ground truth not in PDF (Examples 3 & 4 use mils, may be different format)
+SAMTEC_GROUND_TRUTH = {
+    "name": "SAMTEC_HLE",
+    "pad_count": 42,  # From PRD
+    "expected_pads": [],
+    "notes": [
+        "Mixed SMD + TH connector",
+        "Ground truth PDF may have data in mils (need conversion)",
+        "42 pads total per PRD",
+    ]
+}
+
+
+def get_ground_truth_for_image(image_name: str) -> dict | None:
+    """
+    Get ground truth data for an image by matching filename patterns.
+
+    Returns None if no ground truth is available.
+    """
+    name_lower = image_name.lower()
+
+    if "so-8ep" in name_lower or "so8ep" in name_lower:
+        return SO_8EP_GROUND_TRUTH
+    elif "rj45" in name_lower or "lpjg" in name_lower:
+        return RJ45_GROUND_TRUTH
+    elif "usb3" in name_lower or "usb_3" in name_lower:
+        return USB3_GROUND_TRUTH
+    elif "m2" in name_lower or "mini_pcie" in name_lower or "minipcie" in name_lower:
+        return M2_GROUND_TRUTH
+    elif "samtec" in name_lower or "hle" in name_lower:
+        return SAMTEC_GROUND_TRUTH
+
+    return None
+
 
 def print_separator(char="-", length=70):
     """Print a separator line."""
@@ -86,9 +203,9 @@ def print_extraction_result(result, image_name: str):
         print()
 
     print(f"Pads ({len(fp.pads)}):")
-    print_separator("-", 90)
-    print(f"{'#':<4} {'Desig':<6} {'X':>8} {'Y':>8} {'W':>7} {'H':>7} {'Rot':>5} {'Shape':<12} {'Type':<5} {'Conf':>5}")
-    print_separator("-", 90)
+    print_separator("-", 100)
+    print(f"{'#':<4} {'Desig':<6} {'X':>8} {'Y':>8} {'W':>7} {'H':>7} {'Drill':>6} {'Rot':>5} {'Shape':<12} {'Type':<5} {'Conf':>5}")
+    print_separator("-", 100)
 
     for i, pad in enumerate(fp.pads):
         # Get confidence from raw response if available
@@ -97,11 +214,16 @@ def print_extraction_result(result, image_name: str):
             if i < len(result.raw_response["pads"]):
                 conf = f"{result.raw_response['pads'][i].get('confidence', 0):.2f}"
 
+        # Get drill diameter if available
+        drill_str = ""
+        if pad.drill and pad.drill.diameter:
+            drill_str = f"{pad.drill.diameter:.2f}"
+
         print(f"{i+1:<4} {pad.designator:<6} {pad.x:>8.3f} {pad.y:>8.3f} "
-              f"{pad.width:>7.3f} {pad.height:>7.3f} {pad.rotation:>5.0f} "
+              f"{pad.width:>7.3f} {pad.height:>7.3f} {drill_str:>6} {pad.rotation:>5.0f} "
               f"{pad.shape.value:<12} {pad.pad_type.value:<5} {conf:>5}")
 
-    print_separator("-", 90)
+    print_separator("-", 100)
     print()
 
 
@@ -266,8 +388,27 @@ def run_extraction_test(image_path: Path, extractor: FootprintExtractor) -> dict
     print_extraction_result(result, image_path.name)
 
     # Compare to ground truth if available
-    if "so-8ep" in image_path.name.lower():
-        print_ground_truth_comparison(result, SO_8EP_GROUND_TRUTH, "SO-8EP")
+    ground_truth = get_ground_truth_for_image(image_path.name)
+    if ground_truth:
+        # Only compare if we have expected pads defined
+        if ground_truth.get("expected_pads"):
+            print_ground_truth_comparison(result, ground_truth, ground_truth["name"])
+        else:
+            # Show notes about what we know
+            print_separator("=")
+            print(f"GROUND TRUTH: {ground_truth['name']}")
+            print_separator("=")
+            if ground_truth.get("pad_count"):
+                actual_count = len(result.footprint.pads) if result.success else 0
+                expected = ground_truth["pad_count"]
+                status = "✅" if actual_count == expected else "❌"
+                print(f"{status} Pad count: {actual_count} (expected {expected})")
+            if ground_truth.get("notes"):
+                print("\nNotes:")
+                for note in ground_truth["notes"]:
+                    print(f"  - {note}")
+            print("\n⚠️  Detailed pad comparison not available - ground truth needs values")
+            print()
 
     return result
 

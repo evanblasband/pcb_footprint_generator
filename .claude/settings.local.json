@@ -26,7 +26,11 @@
       "WebFetch(domain:www.phys.hawaii.edu)",
       "Bash(ls:*)",
       "WebFetch(domain:techdocs.altium.com)",
-      "Bash(chmod:*)"
+      "Bash(chmod:*)",
+      "Bash(grep:*)",
+      "Bash(pdftotext:*)",
+      "Bash(sudo apt-get update:*)",
+      "Bash(sudo apt-get install:*)"
     ]
   }
 }

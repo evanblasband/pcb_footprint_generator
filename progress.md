@@ -46,8 +46,75 @@
 #### Model Selection Results (2026-02-11)
 | Model | Pad Dimensions | Cost | Recommendation |
 |-------|---------------|------|----------------|
-| Haiku | ❌ Wrong (confused pitch with width) | $0.0024 | Not recommended |
-| Sonnet | ✅ Correct (0.802mm) | $0.0023 | **Default** |
+| Haiku | ❌ Wrong (confused pitch with width) | $0.0024 | Not for extraction |
+| Sonnet | ✅ Good for SMD | $0.0024 | **Default** - good balance |
+| Opus | ✅ Better for complex TH | $0.0039 | Use for complex connectors |
+
+#### Model Comparison: RJ45 Connector (Complex TH)
+| Aspect | Sonnet | Opus |
+|--------|--------|------|
+| Pad count | 18/22 | 20/22 |
+| Mounting holes (MH1/MH2) | ❌ Missed | ✅ Found with correct 3.2mm drill |
+| Pad size inference | ❌ Used drill as pad size | ✅ Inferred pad size from drill |
+| Drill size categories | ⚠️ Confused | ✅ Properly differentiated |
+| Dimension errors | 18 pads | 6 pads |
+| Cost | $0.0038 | $0.0039 |
+
+**Opus improvements:**
+- Better at inferring pad diameter from drill diameter
+- Properly identifies mounting holes with MH1/MH2 designators
+- More accurate drill size categorization in warnings
+- Still missed 2 pads (1.7mm drill holes confused with pins 11/14)
+
+#### Extraction Accuracy by Component Type
+| Component | Sonnet | Opus | Notes |
+|-----------|--------|------|-------|
+| SO-8EP (SMD, 9 pads) | ✅ 9/9 correct | - | **Works well** - simple layout |
+| RJ45 (TH, 22 pads) | ⚠️ 18/22 | ⚠️ 20/22 | Complex - multiple drill sizes |
+| M.2 Mini PCIe (79 pads) | ❌ 6/79 | ❌ JSON error | Only corner pads dimensioned |
+| USB 3.0 (slots) | ❌ Limited | - | Complex - slots + multiple dimensions |
+| Samtec HLE (42 pads) | ❌ Limited | - | Complex - mixed SMD/TH |
+
+#### Key Finding: Vision Model Limitations
+
+**What works well:**
+- Simple SMD packages (SO-8EP, QFN, SOIC) with clear dimensions
+- Small pad counts (<20)
+- Single pad type (all SMD or all TH with same drill)
+- Clean, well-labeled dimension drawings
+
+**What struggles:**
+- Complex TH connectors with multiple drill sizes
+- High pad count edge connectors (M.2, PCIe)
+- Datasheets with many overlapping dimension callouts
+- Slotted holes with separate slot/drill dimensions
+- Mixed SMD + TH footprints
+
+**Root cause:** Vision extraction models have difficulty parsing complex datasheet drawings with:
+- Many dimension lines crossing each other
+- Multiple tables correlating dimensions to features
+- Implicit/inferred pad positions (only corners dimensioned)
+- Multiple hole types requiring pattern matching (⌀0.9×14, ⌀1.02×4, etc.)
+
+**Fundamental challenge:** There is no standard for how datasheets are drawn. Each manufacturer uses different:
+- Dimension labeling conventions (A, B, C vs X1, Y1 vs descriptive names)
+- Table formats (inline vs separate, nominal vs min/max)
+- Reference points (center vs corner vs edge)
+- Unit conventions (mm vs mils, sometimes mixed)
+- Pad vs drill callouts (some show drill only, some show both)
+
+This lack of standardization makes universal vision extraction extremely challenging.
+
+**Recommendation for MVP:**
+- Focus on simple SMD packages where extraction works well
+- Complex connectors may need manual entry or different approach
+- Consider hybrid: AI extracts what it can, user fills in gaps
+
+#### Known Extraction Issues (to revisit)
+1. **Drill vs pad size** - Opus handles this better than Sonnet
+2. **Mixed drill sizes** - 1.7mm holes sometimes confused with other pins
+3. **Unlabeled holes** - Both models miss some (pads 19, 20 in RJ45)
+4. **Position accuracy** - May need ground truth verification or rotation handling
 
 #### Running Extraction Test
 ```bash

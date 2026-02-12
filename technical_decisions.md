@@ -100,6 +100,26 @@ Started with Claude Haiku for cost efficiency.
 - Cost per extraction still well under $0.01 target
 - Haiku still available via `--model haiku` flag for cost-sensitive users
 
+### Vision Model Limitations (Discovered in Testing)
+
+Testing revealed fundamental limitations in vision-based extraction:
+
+| Complexity | Example | Result |
+|------------|---------|--------|
+| Simple SMD | SO-8EP (9 pads) | ✅ Works well with Sonnet |
+| Complex TH | RJ45 (22 pads, 4 drill sizes) | ⚠️ Partial - Opus helps |
+| High pad count | M.2 Mini PCIe (79 pads) | ❌ Only extracts dimensioned corners |
+| Multiple slots | USB 3.0 connector | ❌ Too many overlapping dimensions |
+| Mixed SMD/TH | Samtec HLE (42 pads) | ❌ Limited extraction |
+
+**Key insight:** Vision models struggle with complex datasheet drawings that have:
+- Many overlapping dimension lines
+- Multiple tables correlating variables to values
+- Implicit pad positions (only corner pads dimensioned)
+- Multiple hole types requiring count-based pattern matching
+
+**MVP scope adjustment:** Focus on simple SMD packages where extraction works reliably. Complex connectors may require manual entry or a hybrid approach.
+
 ---
 
 ## TD-003: Frontend Framework - React + Tailwind
