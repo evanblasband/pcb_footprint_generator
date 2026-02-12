@@ -113,6 +113,9 @@ function PreviewCanvas({ footprint, selectedPin1, pin1Required, onSelectPin1 }) 
       drawPad(ctx, pad, index, scale, offset, MM_TO_PX, isPin1, isHovered, pin1Required)
     })
 
+    // Draw spacing dimensions
+    drawSpacingDimensions(ctx, footprint.pads, scale, offset, MM_TO_PX)
+
     // Draw origin crosshair
     drawOrigin(ctx, scale, offset)
 
@@ -246,6 +249,197 @@ function drawOrigin(ctx, scale, offset) {
   ctx.moveTo(offset.x, offset.y - size)
   ctx.lineTo(offset.x, offset.y + size)
   ctx.stroke()
+}
+
+/**
+ * Draw spacing dimensions between pads.
+ * Shows X and Y pitch measurements.
+ */
+function drawSpacingDimensions(ctx, pads, scale, offset, MM_TO_PX) {
+  if (!pads || pads.length < 2) return
+
+  // Find X spacing (horizontal pitch)
+  const xSpacing = findPadSpacing(pads, 'x')
+  // Find Y spacing (vertical pitch)
+  const ySpacing = findPadSpacing(pads, 'y')
+
+  ctx.strokeStyle = '#60a5fa' // Blue for dimensions
+  ctx.fillStyle = '#60a5fa'
+  ctx.lineWidth = 1
+  ctx.font = `${Math.max(10, 11 * scale)}px Inter, sans-serif`
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+
+  // Draw X dimension if found
+  if (xSpacing) {
+    const { pad1, pad2, distance } = xSpacing
+    drawDimensionLine(ctx, pad1, pad2, distance, 'x', scale, offset, MM_TO_PX)
+  }
+
+  // Draw Y dimension if found
+  if (ySpacing) {
+    const { pad1, pad2, distance } = ySpacing
+    drawDimensionLine(ctx, pad1, pad2, distance, 'y', scale, offset, MM_TO_PX)
+  }
+}
+
+/**
+ * Find representative pad spacing in a given direction.
+ */
+function findPadSpacing(pads, direction) {
+  const tolerance = 0.1 // mm tolerance for "same" position
+  const spacings = []
+
+  for (let i = 0; i < pads.length; i++) {
+    for (let j = i + 1; j < pads.length; j++) {
+      const p1 = pads[i]
+      const p2 = pads[j]
+
+      if (direction === 'x') {
+        // Check if pads are in same row (similar Y)
+        if (Math.abs(p1.y - p2.y) < tolerance) {
+          const dist = Math.abs(p1.x - p2.x)
+          if (dist > 0.1) { // Minimum distance
+            spacings.push({
+              pad1: p1,
+              pad2: p2,
+              distance: dist
+            })
+          }
+        }
+      } else {
+        // Check if pads are in same column (similar X)
+        if (Math.abs(p1.x - p2.x) < tolerance) {
+          const dist = Math.abs(p1.y - p2.y)
+          if (dist > 0.1) {
+            spacings.push({
+              pad1: p1,
+              pad2: p2,
+              distance: dist
+            })
+          }
+        }
+      }
+    }
+  }
+
+  if (spacings.length === 0) return null
+
+  // Find the most common (smallest) spacing - likely the pitch
+  spacings.sort((a, b) => a.distance - b.distance)
+
+  // Return the smallest spacing (typical pitch)
+  return spacings[0]
+}
+
+/**
+ * Draw a dimension line between two pads.
+ */
+function drawDimensionLine(ctx, pad1, pad2, distance, direction, scale, offset, MM_TO_PX) {
+  // Convert to canvas coordinates
+  const x1 = offset.x + pad1.x * MM_TO_PX * scale
+  const y1 = offset.y - pad1.y * MM_TO_PX * scale
+  const x2 = offset.x + pad2.x * MM_TO_PX * scale
+  const y2 = offset.y - pad2.y * MM_TO_PX * scale
+
+  const dimOffset = 20 * scale // Offset from pads
+
+  if (direction === 'x') {
+    // Horizontal dimension - draw above or below pads
+    const dimY = Math.min(y1, y2) - dimOffset
+
+    // Extension lines
+    ctx.beginPath()
+    ctx.moveTo(x1, y1 - 5)
+    ctx.lineTo(x1, dimY - 5)
+    ctx.moveTo(x2, y2 - 5)
+    ctx.lineTo(x2, dimY - 5)
+    ctx.stroke()
+
+    // Dimension line with arrows
+    ctx.beginPath()
+    ctx.moveTo(x1, dimY)
+    ctx.lineTo(x2, dimY)
+    ctx.stroke()
+
+    // Arrows
+    drawArrow(ctx, x1, dimY, 'right')
+    drawArrow(ctx, x2, dimY, 'left')
+
+    // Text
+    const textX = (x1 + x2) / 2
+    ctx.fillStyle = '#141311'
+    ctx.fillRect(textX - 25, dimY - 8, 50, 16)
+    ctx.fillStyle = '#60a5fa'
+    ctx.fillText(`${distance.toFixed(2)}mm`, textX, dimY)
+
+  } else {
+    // Vertical dimension - draw to left or right of pads
+    const dimX = Math.min(x1, x2) - dimOffset
+
+    // Extension lines
+    ctx.beginPath()
+    ctx.moveTo(x1 - 5, y1)
+    ctx.lineTo(dimX - 5, y1)
+    ctx.moveTo(x2 - 5, y2)
+    ctx.lineTo(dimX - 5, y2)
+    ctx.stroke()
+
+    // Dimension line with arrows
+    ctx.beginPath()
+    ctx.moveTo(dimX, y1)
+    ctx.lineTo(dimX, y2)
+    ctx.stroke()
+
+    // Arrows
+    drawArrow(ctx, dimX, y1, 'down')
+    drawArrow(ctx, dimX, y2, 'up')
+
+    // Text (rotated)
+    const textY = (y1 + y2) / 2
+    ctx.save()
+    ctx.translate(dimX, textY)
+    ctx.rotate(-Math.PI / 2)
+    ctx.fillStyle = '#141311'
+    ctx.fillRect(-25, -8, 50, 16)
+    ctx.fillStyle = '#60a5fa'
+    ctx.fillText(`${distance.toFixed(2)}mm`, 0, 0)
+    ctx.restore()
+  }
+}
+
+/**
+ * Draw an arrow head.
+ */
+function drawArrow(ctx, x, y, direction) {
+  const size = 5
+  ctx.beginPath()
+
+  switch (direction) {
+    case 'left':
+      ctx.moveTo(x, y)
+      ctx.lineTo(x + size, y - size / 2)
+      ctx.lineTo(x + size, y + size / 2)
+      break
+    case 'right':
+      ctx.moveTo(x, y)
+      ctx.lineTo(x - size, y - size / 2)
+      ctx.lineTo(x - size, y + size / 2)
+      break
+    case 'up':
+      ctx.moveTo(x, y)
+      ctx.lineTo(x - size / 2, y + size)
+      ctx.lineTo(x + size / 2, y + size)
+      break
+    case 'down':
+      ctx.moveTo(x, y)
+      ctx.lineTo(x - size / 2, y - size)
+      ctx.lineTo(x + size / 2, y - size)
+      break
+  }
+
+  ctx.closePath()
+  ctx.fill()
 }
 
 /**
