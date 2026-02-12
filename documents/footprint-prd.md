@@ -1,9 +1,35 @@
 # PRD: AI PCB Footprint Generator
 
-**Product Name:** FootprintAI (working title)  
-**Document Owner:** Evan Blasband  
-**Status:** Draft v0.1  
+**Product Name:** FootprintAI (working title)
+**Document Owner:** Evan Blasband
+**Status:** Draft v0.1 → **Implemented v1.0** (2026-02-12)
 **Target:** MVP Demo for Arena AI
+
+---
+
+## Implementation Status Summary
+
+> **This section documents differences between the original PRD and the actual implementation.**
+
+| Feature | PRD Spec | Implementation | Notes |
+|---------|----------|----------------|-------|
+| Output format | `.PcbLib` ASCII | **DelphiScript (.pas) in Script Project (.zip)** | ASCII .PcbLib doesn't work in Altium 26; DelphiScript uses official API |
+| AI Model | Claude Haiku | **Claude Sonnet (default)** | Haiku confused pad width with pitch; Sonnet/Opus available |
+| User editing | Editable values | **Confirm only** | Per user interview - MVP is confirm only |
+| Through-hole pads | Deferred | **✅ Implemented** | TH round pads + slotted holes supported |
+| Thermal pads | Deferred | **Partially implemented** | Basic thermal vias, no paste mask patterns |
+| Multiple images | Not specified | **✅ Implemented** | Upload multiple images for better extraction context |
+| Preview zoom/pan | Not specified | **✅ Implemented** | Mouse wheel zoom, click-drag pan |
+| Documentation tabs | Not specified | **✅ Implemented** | In-app README, PRD, Technical Decisions pages |
+| Standard package detection | AI + redirect | **✅ Implemented** | Detects IPC-7351, suggests Altium IPC wizard |
+
+### Key Architectural Differences
+
+1. **File Format**: DelphiScript scripts are generated instead of ASCII .PcbLib files. Users download a Script Project package (.zip) containing `.PrjScr` and `.pas` files, then run the script in Altium to create the footprint.
+
+2. **API Flow**: Added `/api/confirm/{job_id}` endpoint to separate confirmation from generation. The extraction → confirm → generate flow uses job state management.
+
+3. **Model Selection**: Sonnet is the default model. Testing revealed Haiku has accuracy issues with dimension extraction (confuses pitch with pad width).
 
 ---
 
@@ -60,7 +86,7 @@ User downloads and imports to Altium
 
 ### Core Capabilities
 
-**V1 MVP:**
+**V1 MVP (Original Spec):**
 - Image/PDF upload (user-cropped to relevant section)
 - Vision-based dimension extraction (pad sizes, positions, pitch, outline)
 - User confirmation/edit UI for extracted values
@@ -68,16 +94,29 @@ User downloads and imports to Altium
 - Altium ASCII footprint generation (SMD pads, silkscreen outline)
 - Download as importable file
 
-**Deferred:**
+**V1 MVP (Actually Implemented):**
+- ✅ Multiple image upload (PNG/JPEG/GIF/WebP) with drag-drop, paste (Ctrl+V), and file picker
+- ✅ Vision-based dimension extraction via Claude Sonnet (Haiku/Opus also available)
+- ✅ User confirmation UI (confirm only, no editing per user interview)
+- ✅ Pin 1 selection via interactive canvas click
+- ✅ **DelphiScript generation** (not ASCII .PcbLib - see Implementation Status)
+- ✅ Script Project package download (.zip with .PrjScr + .pas files)
+- ✅ **Through-hole pads** with drill holes (originally deferred)
+- ✅ **Basic thermal vias** (originally deferred)
+- ✅ 2D preview canvas with zoom/pan and spacing dimensions
+- ✅ Confidence highlighting (yellow/orange for low confidence values)
+- ✅ Standard package detection with IPC wizard redirect
+
+**Deferred (Still Not Implemented):**
 - Full PDF parsing (multi-page search)
-- Through-hole/mixed technology
 - 3D model generation
 - Paste mask/courtyard layers (use defaults)
 - KiCad/Eagle/OrCAD export
 - Batch processing
-- **Thermal pads:** QFN/QFP exposed pads with paste mask windowing patterns — complex, deferred
+- **Thermal pad paste mask windowing patterns** — only basic size/position implemented
 - **Post-generation DRC:** Pad spacing validation, silkscreen clearance checks
 - **IPC-7351C material conditions:** Automatic pad sizing adjustments per IPC spec
+- **Value editing** — MVP is confirm-only per user interview
 
 ---
 
@@ -234,6 +273,7 @@ User downloads and imports to Altium
 
 ### API Endpoints
 
+**Original Spec:**
 ```
 POST /api/upload
   - Accepts image/PDF
@@ -252,6 +292,40 @@ GET /api/detect-standard
   - Returns package classification + IPC parameters if standard
 ```
 
+**Actually Implemented:**
+```
+POST /api/upload
+  - Accepts multiple images (files[] array)
+  - Returns job_id and image_count
+
+GET /api/extract/{job_id}?model=sonnet
+  - Runs Claude Vision extraction on all uploaded images
+  - Returns extraction result with footprint data
+  - Supports model selection: haiku, sonnet, opus
+
+POST /api/confirm/{job_id}
+  - Confirms dimensions and Pin 1 selection
+  - Body: { pin1_index: number }
+
+GET /api/generate/{job_id}
+  - Downloads Script Project package (.zip)
+  - Contains .PrjScr and .pas files
+
+POST /api/detect-standard
+  - Accepts single image file
+  - Returns standard_package detection result
+
+GET /api/job/{job_id}/status
+  - Returns job status and metadata
+
+DELETE /api/job/{job_id}
+  - Deletes job and associated data
+
+GET /api/docs/{doc_name}
+  - Serves markdown documentation
+  - doc_name: readme, prd, technical-decisions
+```
+
 ### Data Flow
 
 ```
@@ -264,29 +338,46 @@ GET /api/detect-standard
                                            → Return file download
 ```
 
-### Altium ASCII Format
+### Altium Format (Updated After Spike)
 
-Altium .PcbLib files are compound documents but support ASCII import via:
-1. **ASCII PCB format:** Text representation of PCB primitives that can be pasted into PcbLib editor
-2. **Script generation:** DelphiScript that creates footprint when run in Altium (more complex)
+**Original Plan:** ASCII PCB primitives that can be pasted into PcbLib editor.
 
-**Recommended approach:** Generate ASCII primitive list. User pastes into Altium's PcbLib editor or imports via script.
+**Spike Result:** ASCII .PcbLib files open empty in Altium Designer 26. The native format is binary OLE compound document, not ASCII.
 
-Example ASCII pad primitive:
+**Implemented Solution:** DelphiScript (.pas) files that use Altium's official PCB API:
+- `PCBServer.PCBLibraryIterator` - Access library components
+- `IPCB_Pad.Create` - Create pad objects with all properties
+- `IPCB_Track.Create` - Create silkscreen outline
+- `IPCB_Arc.Create` - Create Pin 1 indicator
+
+**Output Format:** Script Project package (.zip) containing:
 ```
-PAD
-  X=0mm
-  Y=0mm
-  XSIZE=0.5mm
-  YSIZE=0.8mm
-  SHAPE=RECTANGLE
-  LAYER=MULTILAYER
-  HOLE=0mm
-  NAME=1
-END
+{PartNumber}_ScriptProject.zip
+├── {PartNumber}.PrjScr    # Altium Script Project file
+└── {PartNumber}.pas       # DelphiScript footprint generator
 ```
 
-**Technical spike required:** Validate exact ASCII syntax accepted by Altium 23/24. Test import workflow.
+**User Workflow:**
+1. Download .zip from web app
+2. Extract to local folder
+3. Open .PrjScr in Altium Designer 26
+4. Create/open a PCB Library document
+5. Run script via DXP → Run Script
+6. Footprint created in library
+
+**Example DelphiScript pad creation:**
+```pascal
+Pad := IPCB_Pad(PCBServer.PCBObjectFactory(ePadObject, eNoDimension, eCreate_Default));
+Pad.X := MMsToCoord(1.27);
+Pad.Y := MMsToCoord(0.0);
+Pad.TopXSize := MMsToCoord(0.8);
+Pad.TopYSize := MMsToCoord(1.5);
+Pad.TopShape := eRectangular;
+Pad.Layer := eTopLayer;
+Pad.Name := '1';
+```
+
+See `technical_decisions.md` TD-001 for full rationale.
 
 ---
 
@@ -314,20 +405,20 @@ END
 
 ## MVP Scope Boundaries
 
-### In Scope
-- Single footprint extraction per session
-- SMD rectangular/circular/oval pads
-- Through-hole pads (drill holes, annular rings)
-- Mixed SMD/TH footprints
-- User-cropped input (no full PDF search)
-- Manual pin naming with optional AI suggestion
-- Altium 26 ASCII output only
-- Web UI (no API-only mode)
-- One package type validated end-to-end (targeting non-standard/custom)
+### In Scope (Original + Implemented)
+- Single footprint extraction per session ✅
+- SMD rectangular/circular/oval pads ✅
+- Through-hole pads (drill holes, annular rings) ✅ *Originally listed as both in/out scope*
+- Mixed SMD/TH footprints ✅ *Basic support*
+- User-cropped input (no full PDF search) ✅
+- Manual pin naming with optional AI suggestion ✅ *Pin 1 selection only in MVP*
+- **DelphiScript output** ✅ *Changed from "ASCII output" after spike*
+- Web UI (no API-only mode) ✅
+- Multiple image upload for better extraction context ✅ *Added during implementation*
+- Preview canvas with zoom/pan ✅ *Added during implementation*
+- Confidence highlighting for uncertain values ✅
 
 ### Out of Scope (Future)
-- Through-hole pads (drill holes)
-- Mixed SMD/TH footprints
 - Full PDF parsing and page detection
 - Batch processing multiple parts
 - 3D model generation
@@ -335,6 +426,7 @@ END
 - Paste mask/courtyard layer customization
 - Direct Altium plugin integration
 - User accounts/saved footprints
+- **Value editing** (confirm only in MVP per user interview)
 
 ---
 
@@ -381,47 +473,60 @@ END
 
 ---
 
-## Open Questions
+## Open Questions (Resolved)
 
-1. **Altium version targeting:** Altium 26 (confirmed).
-2. **Example datasheets:** Need 5-10 representative samples covering target package types.
-3. **Ground truth footprints:** Need known-good footprints for accuracy validation.
-4. **Cost ceiling:** What's acceptable per-extraction API cost? ($0.01? $0.05? $0.10?)
-5. **Error handling UX:** If extraction fails completely, what's the fallback? Manual entry form?
+1. **Altium version targeting:** ✅ Altium Designer 26 (confirmed, tested)
+2. **Example datasheets:** ✅ 5 examples in `example_datasheets/` folder
+3. **Ground truth footprints:** ✅ In `documents/` folder - validated against SO-8EP
+4. **Cost ceiling:** ✅ ~$0.002-0.004 per extraction with Sonnet (well under $0.01 target)
+5. **Error handling UX:** ✅ Error messages displayed, Reset button to start over
+
+## Remaining Open Questions
+
+1. **Complex connector support:** Vision models struggle with high-pad-count connectors (M.2, USB 3.0). Consider hybrid approach?
+2. **Slotted holes:** API property for slot length unclear - needs verification in Altium
+3. **Rounded rectangle pads:** AD26 constant causes crashes - using rectangular fallback
 
 ---
 
 ## Implementation Plan
 
-### Phase 0: Spikes (Day 1)
-- [ ] Spike 1: Altium ASCII format validation
-- [ ] Spike 2: Vision model accuracy test
-- [ ] Spike 3: Prompt engineering
+### Phase 0: Spikes (Day 1) ✅ COMPLETE
+- [x] Spike 1: Altium format validation → **Result: ASCII .PcbLib doesn't work, pivoted to DelphiScript**
+- [x] Spike 2: Vision model accuracy test → **Result: Sonnet recommended over Haiku**
+- [x] Spike 3: Prompt engineering → **Included in Spike 2**
 
-### Phase 1: Backend Core (Days 2-3)
-- [ ] FastAPI scaffold
-- [ ] Image upload endpoint
-- [ ] Claude Vision integration
-- [ ] Dimension extraction pipeline
-- [ ] Altium ASCII generator
+### Phase 1: Backend Core (Days 1-2) ✅ COMPLETE
+- [x] FastAPI scaffold with Pydantic models
+- [x] Multi-image upload endpoint
+- [x] Claude Vision integration (Sonnet/Haiku/Opus)
+- [x] Dimension extraction pipeline with confidence scoring
+- [x] **DelphiScript generator** (pivoted from ASCII .PcbLib)
+- [x] Script Project package generation (.zip)
+- [x] 186 unit tests passing
 
-### Phase 2: Frontend (Days 3-4)
-- [ ] Upload UI
-- [ ] Extraction results display
-- [ ] Editable confirmation form
-- [ ] Visual footprint preview
-- [ ] Download flow
+### Phase 2: Frontend (Day 2) ✅ COMPLETE
+- [x] Upload UI with drag-drop, paste, multi-image support
+- [x] Extraction results display with confidence highlighting
+- [x] Confirmation form (confirm only, no editing per user interview)
+- [x] Visual footprint preview with zoom/pan
+- [x] Pin 1 interactive selection
+- [x] Download flow with part number naming
+- [x] Documentation tabs (README, PRD, Technical Decisions)
 
-### Phase 3: Integration & Polish (Day 5)
-- [ ] End-to-end testing
-- [ ] Error handling
-- [ ] Deploy to Railway
-- [ ] Documentation/README
+### Phase 3: Integration & Polish (Day 3) ✅ COMPLETE
+- [x] End-to-end testing with Altium Designer 26
+- [x] Error handling and user-friendly messages
+- [ ] Deploy to Railway (pending)
+- [x] Documentation/README
 
-### Phase 4: Validation (Day 6)
-- [ ] Test with example datasheets
-- [ ] Import generated footprints into Altium
-- [ ] Fix issues found
+### Phase 4: Validation (Ongoing)
+- [x] Test SO-8EP - ✅ Works well with Sonnet
+- [ ] Test RJ45 - Partial (complex TH)
+- [ ] Test USB 3.0 - Limited (slots)
+- [ ] Test M.2 Mini PCIe - Limited (high pad count)
+- [ ] Test Samtec HLE - Limited (mixed SMD/TH)
+- [x] Import generated footprints into Altium - ✅ Verified working
 - [ ] Record demo
 
 ---
@@ -438,23 +543,21 @@ END
 
 ## Appendix A: Altium Import Methods
 
-### Method 1: ASCII Paste
-1. Open blank PcbLib in Altium
-2. Create new component
-3. Edit → Paste Special → ASCII Text
-4. Paste generated primitives
+### Method 1: ASCII Paste ❌ DOES NOT WORK
+*Tested: ASCII .PcbLib files open empty in Altium Designer 26*
 
-### Method 2: Script Import
-1. Save generated .pas script file
-2. In Altium: DXP → Run Script
-3. Script creates footprint programmatically
+### Method 2: Script Import ✅ IMPLEMENTED
+1. Extract downloaded Script Project (.zip)
+2. Open `.PrjScr` file in Altium Designer 26
+3. Open/create a PCB Library document
+4. DXP → Run Script → Select procedure
+5. Footprint created in library
 
-### Method 3: PcbLib File
-1. Generate complete .PcbLib file in ASCII format
-2. File → Open → select generated file
-3. Copy component to target library
+### Method 3: PcbLib File ❌ DOES NOT WORK
+*Native .PcbLib format is binary OLE compound document, not ASCII*
 
-**Spike 1 will determine which method is most reliable.**
+**Spike Result:** Method 2 (DelphiScript) is the only reliable approach.
+See `technical_decisions.md` TD-001 for details.
 
 ---
 

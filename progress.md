@@ -147,7 +147,7 @@ python run_extraction_test.py ../example_datasheets/so-8ep_crop.png --model haik
 | test_main.py | 18 | ✅ All passing |
 | test_generator.py | 44 | ✅ All passing |
 | test_generator_delphiscript.py | 40 | ✅ All passing |
-| **Total** | **186** | ✅ 184 pass, 1 skip |
+| **Total** | **186** | ✅ 185 pass, 1 skip |
 
 ## Day 2: Frontend + Integration
 
@@ -186,6 +186,9 @@ python run_extraction_test.py ../example_datasheets/so-8ep_crop.png --model haik
 - [x] Preview canvas zoom controls (+/−/Fit buttons and mouse wheel)
 - [x] Preview canvas pan/drag support (click and drag to move view)
 - [x] Multiple image upload support for better extraction context
+- [x] Header tabs for documentation pages (README, PRD, Technical Decisions)
+- [x] GitHub repository link button in header
+- [x] MarkdownViewer component with styled markdown rendering
 
 ## Day 3: Polish + Testing + Deploy
 
@@ -225,7 +228,7 @@ python run_extraction_test.py ../example_datasheets/so-8ep_crop.png --model haik
 
 ### Medium Priority
 - [ ] **Rounded Rectangle pads**: Research correct AD26 API constant (currently falls back to rectangular)
-- [ ] **Outline sizing**: Calculate outline bounds from actual pad positions instead of hardcoded values
+- [x] **Outline sizing**: Calculate outline bounds from actual pad positions instead of hardcoded values
 - [ ] **Documentation**: Create user guide with screenshots for running scripts in Altium
 
 ### Low Priority (Future Enhancements)

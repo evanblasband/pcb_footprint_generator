@@ -604,3 +604,42 @@ async def delete_job(job_id: str):
 
     del jobs[job_id]
     return {"message": f"Job {job_id} deleted"}
+
+
+# =============================================================================
+# Documentation Endpoints
+# =============================================================================
+
+# Map of document names to file paths (relative to project root)
+DOCS_MAP = {
+    "readme": "../README.md",
+    "prd": "../documents/footprint-prd.md",
+    "technical-decisions": "../technical_decisions.md",
+}
+
+
+@app.get("/api/docs/{doc_name}")
+async def get_documentation(doc_name: str):
+    """
+    Get documentation markdown content.
+
+    Available docs: readme, prd, technical-decisions
+    """
+    if doc_name not in DOCS_MAP:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Document not found: {doc_name}. Available: {list(DOCS_MAP.keys())}"
+        )
+
+    # Resolve path relative to this file
+    doc_path = Path(__file__).parent / DOCS_MAP[doc_name]
+
+    if not doc_path.exists():
+        raise HTTPException(
+            status_code=404,
+            detail=f"Document file not found: {doc_name}"
+        )
+
+    content = doc_path.read_text(encoding="utf-8")
+
+    return {"name": doc_name, "content": content}

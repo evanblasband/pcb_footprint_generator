@@ -6,7 +6,7 @@ AI-powered extraction of PCB footprint data from component datasheet images with
 
 | Component | Status |
 |-----------|--------|
-| Backend API | ✅ Complete (186 tests passing) |
+| Backend API | ✅ Complete (185 tests passing) |
 | Vision Extraction | ✅ Complete (Sonnet/Opus) |
 | DelphiScript Generator | ✅ Complete & verified in Altium 26 |
 | Frontend | ✅ Complete (React + Tailwind v4) |
@@ -25,6 +25,7 @@ Hardware engineers frequently encounter components without existing PCB footprin
 - **2D Preview**: Visual verification with zoom/pan and pad spacing dimensions
 - **Part Number Input**: Custom filename for downloads
 - **Altium Export**: Script Project package (.zip) with .PrjScr and .pas files
+- **In-App Documentation**: Tabs for README, PRD, and Technical Decisions
 
 ## Tech Stack
 
@@ -92,7 +93,7 @@ source venv/bin/activate
 python -m pytest tests/ -v
 ```
 
-186 tests covering models, extraction, prompts, API endpoints, and generators.
+185 tests passing (1 skipped integration test) covering models, extraction, prompts, API endpoints, and generators.
 
 ### Frontend Setup
 
@@ -109,13 +110,14 @@ The app will be available at http://localhost:5173 (or 5174 if 5173 is in use).
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/` | Health check |
-| POST | `/api/upload` | Upload image (PNG/JPEG/GIF/WebP), returns job_id |
+| POST | `/api/upload` | Upload images (PNG/JPEG/GIF/WebP, multiple supported), returns job_id |
 | GET | `/api/extract/{job_id}?model=sonnet` | Extract dimensions with confidence (model: haiku/sonnet/opus) |
 | POST | `/api/confirm/{job_id}` | Confirm dimensions + Pin 1 selection |
 | GET | `/api/generate/{job_id}` | Download Script Project package (.zip) |
 | POST | `/api/detect-standard` | Check for IPC-7351 standard packages |
 | GET | `/api/job/{job_id}/status` | Get job status |
 | DELETE | `/api/job/{job_id}` | Delete job |
+| GET | `/api/docs/{doc_name}` | Get markdown documentation (readme, prd, technical-decisions) |
 
 ## Usage
 

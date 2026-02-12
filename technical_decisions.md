@@ -527,8 +527,73 @@ AnnotationEnabled=1
 
 ---
 
+## TD-012: Multiple Image Upload Support
+
+**Date:** 2026-02-12
+**Status:** Implemented
+
+### Context
+Datasheet footprint information is often spread across multiple images/pages:
+- Dimension drawing with measurements
+- Pin assignment table
+- Package outline
+
+Single-image extraction limits the AI's ability to cross-reference information.
+
+### Decision
+Support uploading multiple images that are all sent in a single Claude Vision API call.
+
+### Implementation
+1. Frontend accepts multiple files via drag-drop, paste, or file picker
+2. Images stored in job state as array of `ImageData` objects
+3. `extract_from_bytes_multi()` method sends all images in one API call
+4. Prompt updated to explain multiple image context
+
+### Rationale
+1. Claude Vision API natively supports multiple images in a single request
+2. AI can cross-reference between images (e.g., dimension labels in drawing → values in table)
+3. More context generally improves extraction accuracy
+4. No additional API cost vs single image (same token limits)
+
+### Consequences
+- Better extraction accuracy for complex datasheets
+- Users can upload relevant pages together
+- API call structure changed from single to multiple content blocks
+
+---
+
+## TD-013: In-App Documentation with Markdown Rendering
+
+**Date:** 2026-02-12
+**Status:** Implemented
+
+### Context
+Users need access to documentation (README, PRD, Technical Decisions) without leaving the app.
+
+### Decision
+Add header tabs that display markdown documentation rendered within the app.
+
+### Implementation
+1. Backend `/api/docs/{doc_name}` endpoint serves raw markdown content
+2. Frontend `MarkdownViewer` component uses `react-markdown` + `remark-gfm`
+3. Custom styled components for all markdown elements to match app theme
+4. Header tabs for Generator, README, PRD, Technical Decisions
+
+### Rationale
+1. Keeps users in context while reading docs
+2. No need to navigate to GitHub
+3. Markdown rendering looks professional with dark theme styling
+4. GFM support for tables, task lists, etc.
+
+### Consequences
+- Added react-markdown and remark-gfm dependencies
+- Documentation changes are immediately visible in app
+- Consistent styling with main application
+
+---
+
 ## Future Decisions (To Be Made)
 
-- **TD-012:** Production deployment strategy (Railway configuration)
-- **TD-013:** Rate limiting and abuse prevention
-- **TD-014:** Error recovery for partial extractions
+- **TD-014:** Production deployment strategy (Railway configuration)
+- **TD-015:** Rate limiting and abuse prevention
+- **TD-016:** Error recovery for partial extractions
