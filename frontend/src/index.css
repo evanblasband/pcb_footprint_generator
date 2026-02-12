@@ -1,0 +1,64 @@
+@import "tailwindcss";
+
+/* Arena AI-inspired color theme */
+@theme {
+  /* Primary accent - lime green */
+  --color-accent: #e6fb53;
+  --color-accent-hover: #d4e94d;
+
+  /* Dark backgrounds */
+  --color-bg-primary: #0d0d0d;
+  --color-bg-secondary: #141311;
+  --color-bg-tertiary: #1a1918;
+
+  /* Light backgrounds (for cards, etc.) */
+  --color-bg-light: #f9f7f4;
+  --color-bg-light-alt: #faf7f5;
+
+  /* Text colors */
+  --color-text-primary: #f9f7f4;
+  --color-text-secondary: #656462;
+  --color-text-muted: #4a4847;
+  --color-text-dark: #0d0d0d;
+
+  /* Status colors */
+  --color-success: #4ade80;
+  --color-warning: #fbbf24;
+  --color-error: #f87171;
+  --color-info: #60a5fa;
+
+  /* Confidence colors */
+  --color-confidence-high: #4ade80;
+  --color-confidence-medium: #fbbf24;
+  --color-confidence-low: #fb923c;
+
+  /* Font */
+  --font-sans: 'Inter', system-ui, sans-serif;
+}
+
+/* Base styles */
+body {
+  font-family: var(--font-sans);
+  background-color: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  min-height: 100vh;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-bg-secondary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-text-secondary);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-primary);
+}

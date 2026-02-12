@@ -30,7 +30,12 @@
       "Bash(grep:*)",
       "Bash(pdftotext:*)",
       "Bash(sudo apt-get update:*)",
-      "Bash(sudo apt-get install:*)"
+      "Bash(sudo apt-get install:*)",
+      "WebFetch(domain:arena-ai.com)",
+      "Bash(npm create:*)",
+      "Bash(npm install:*)",
+      "Bash(npm run build:*)",
+      "Bash(timeout 5 npm run dev:*)"
     ]
   }
 }
