@@ -25,19 +25,27 @@ function App() {
   // Part number for filename
   const [partNumber, setPartNumber] = useState('')
 
+  // Image count
+  const [imageCount, setImageCount] = useState(0)
+
   // Error state
   const [error, setError] = useState(null)
 
   /**
-   * Handle file upload
+   * Handle file upload (supports single file or array of files)
    */
-  const handleUpload = useCallback(async (file) => {
+  const handleUpload = useCallback(async (files) => {
     setError(null)
     setJobStatus('uploading')
 
+    // Ensure files is an array
+    const fileArray = Array.isArray(files) ? files : [files]
+
     try {
       const formData = new FormData()
-      formData.append('file', file)
+      fileArray.forEach(file => {
+        formData.append('files', file)
+      })
 
       const response = await fetch('/api/upload', {
         method: 'POST',
@@ -51,6 +59,7 @@ function App() {
 
       const data = await response.json()
       setJobId(data.job_id)
+      setImageCount(data.image_count || fileArray.length)
       setJobStatus('uploaded')
     } catch (err) {
       setError(err.message)
@@ -186,6 +195,7 @@ function App() {
     setSelectedPin1(null)
     setPin1Required(false)
     setPartNumber('')
+    setImageCount(0)
     setError(null)
   }, [])
 
@@ -219,6 +229,7 @@ function App() {
                 pin1Required={pin1Required}
                 selectedPin1={selectedPin1}
                 partNumber={partNumber}
+                imageCount={imageCount}
                 onPartNumberChange={setPartNumber}
                 onExtract={handleExtract}
                 onConfirm={handleConfirm}

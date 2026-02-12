@@ -72,15 +72,23 @@ app.add_middleware(
 # In-Memory Job Storage
 # =============================================================================
 
-class Job:
-    """Represents an extraction job with its state and results."""
-
-    def __init__(self, job_id: str, filename: str, image_bytes: bytes, content_type: str):
-        self.job_id = job_id
+class ImageData:
+    """Stores data for a single uploaded image."""
+    def __init__(self, filename: str, image_bytes: bytes, content_type: str):
         self.filename = filename
         self.image_bytes = image_bytes
         self.content_type = content_type
+
+
+class Job:
+    """Represents an extraction job with its state and results."""
+
+    def __init__(self, job_id: str):
+        self.job_id = job_id
         self.created_at = datetime.utcnow()
+
+        # Multiple images support
+        self.images: list[ImageData] = []
 
         # Extraction results (populated after extraction)
         self.extraction_response: Optional[ExtractionResponse] = None
@@ -90,6 +98,34 @@ class Job:
         self.confirmed = False
         self.confirmed_footprint: Optional[Footprint] = None
         self.pin1_index: Optional[int] = None
+
+    def add_image(self, filename: str, image_bytes: bytes, content_type: str):
+        """Add an image to this job."""
+        self.images.append(ImageData(filename, image_bytes, content_type))
+        # Reset extraction if new images added
+        if self.extracted:
+            self.extracted = False
+            self.extraction_response = None
+
+    @property
+    def filename(self) -> str:
+        """Return first image filename for backward compatibility."""
+        return self.images[0].filename if self.images else ""
+
+    @property
+    def image_bytes(self) -> bytes:
+        """Return first image bytes for backward compatibility."""
+        return self.images[0].image_bytes if self.images else b""
+
+    @property
+    def content_type(self) -> str:
+        """Return first image content type for backward compatibility."""
+        return self.images[0].content_type if self.images else ""
+
+    @property
+    def image_count(self) -> int:
+        """Return number of images in this job."""
+        return len(self.images)
 
 
 # In-memory job storage (dict keyed by job_id)
@@ -120,6 +156,7 @@ class UploadResponse(BaseModel):
     """Response from upload endpoint."""
     job_id: str
     filename: str
+    image_count: int = 1
     message: str
 
 
@@ -176,60 +213,116 @@ async def root():
 
 
 @app.post("/api/upload", response_model=UploadResponse)
-async def upload_image(file: UploadFile = File(...)):
+async def upload_image(files: list[UploadFile] = File(...)):
     """
-    Upload a datasheet image for footprint extraction.
+    Upload one or more datasheet images for footprint extraction.
 
-    Accepts PNG, JPEG, GIF, or WebP images up to 10MB.
+    Accepts PNG, JPEG, GIF, or WebP images up to 10MB each.
+    Multiple images provide more context for better extraction accuracy.
     Returns a job_id for subsequent extraction and generation.
     """
-    # Validate content type
-    if file.content_type not in SUPPORTED_FORMATS:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Unsupported file type: {file.content_type}. Supported: PNG, JPEG, GIF, WebP"
-        )
-
-    # Read file content
-    content = await file.read()
-
-    # Validate file size
-    if len(content) > MAX_FILE_SIZE:
-        raise HTTPException(
-            status_code=400,
-            detail=f"File too large. Maximum size: {MAX_FILE_SIZE // (1024*1024)}MB"
-        )
+    if not files:
+        raise HTTPException(status_code=400, detail="At least one file is required")
 
     # Create job
     job_id = str(uuid.uuid4())
-    job = Job(
-        job_id=job_id,
-        filename=file.filename or "uploaded_image",
-        image_bytes=content,
-        content_type=file.content_type,
-    )
+    job = Job(job_id=job_id)
+
+    for file in files:
+        # Validate content type
+        if file.content_type not in SUPPORTED_FORMATS:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Unsupported file type: {file.content_type}. Supported: PNG, JPEG, GIF, WebP"
+            )
+
+        # Read file content
+        content = await file.read()
+
+        # Validate file size
+        if len(content) > MAX_FILE_SIZE:
+            raise HTTPException(
+                status_code=400,
+                detail=f"File {file.filename} too large. Maximum size: {MAX_FILE_SIZE // (1024*1024)}MB"
+            )
+
+        # Add image to job
+        job.add_image(
+            filename=file.filename or "uploaded_image",
+            image_bytes=content,
+            content_type=file.content_type,
+        )
+
     jobs[job_id] = job
 
     return UploadResponse(
         job_id=job_id,
         filename=job.filename,
-        message="Image uploaded successfully. Call /api/extract/{job_id} to extract dimensions."
+        image_count=job.image_count,
+        message=f"{job.image_count} image(s) uploaded successfully. Call /api/extract/{job_id} to extract dimensions."
+    )
+
+
+@app.post("/api/upload/{job_id}/add", response_model=UploadResponse)
+async def add_images_to_job(job_id: str, files: list[UploadFile] = File(...)):
+    """
+    Add additional images to an existing job.
+
+    Adding more images provides more context for extraction.
+    This resets any previous extraction results.
+    """
+    job = get_job(job_id)
+
+    for file in files:
+        # Validate content type
+        if file.content_type not in SUPPORTED_FORMATS:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Unsupported file type: {file.content_type}. Supported: PNG, JPEG, GIF, WebP"
+            )
+
+        # Read file content
+        content = await file.read()
+
+        # Validate file size
+        if len(content) > MAX_FILE_SIZE:
+            raise HTTPException(
+                status_code=400,
+                detail=f"File {file.filename} too large. Maximum size: {MAX_FILE_SIZE // (1024*1024)}MB"
+            )
+
+        # Add image to job
+        job.add_image(
+            filename=file.filename or "uploaded_image",
+            image_bytes=content,
+            content_type=file.content_type,
+        )
+
+    return UploadResponse(
+        job_id=job_id,
+        filename=job.filename,
+        image_count=job.image_count,
+        message=f"Added images. Job now has {job.image_count} image(s)."
     )
 
 
 @app.get("/api/extract/{job_id}", response_model=ExtractResponse)
 async def extract_dimensions(job_id: str, model: str = "sonnet"):
     """
-    Extract footprint dimensions from the uploaded image.
+    Extract footprint dimensions from the uploaded images.
 
-    Uses Claude Vision API to analyze the datasheet image and extract
-    pad positions, dimensions, and other footprint data.
+    Uses Claude Vision API to analyze the datasheet images and extract
+    pad positions, dimensions, and other footprint data. Multiple images
+    provide additional context for more accurate extraction.
 
     Args:
         job_id: The job ID from upload
         model: Model to use (haiku, sonnet, opus). Default: sonnet
     """
     job = get_job(job_id)
+
+    if not job.images:
+        raise HTTPException(status_code=400, detail="No images uploaded for this job")
 
     # Check if already extracted
     if job.extracted and job.extraction_response:
@@ -239,7 +332,10 @@ async def extract_dimensions(job_id: str, model: str = "sonnet"):
     # Create extractor and run extraction
     try:
         extractor = FootprintExtractor(model=model)
-        result = extractor.extract_from_bytes(job.image_bytes, job.content_type)
+
+        # Prepare images list for extraction
+        images = [(img.image_bytes, img.content_type) for img in job.images]
+        result = extractor.extract_from_bytes_multi(images)
 
         # Store result
         job.extraction_response = result

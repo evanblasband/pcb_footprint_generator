@@ -109,13 +109,14 @@ class TestUploadEndpoint:
         """Test successful PNG upload."""
         response = client.post(
             "/api/upload",
-            files={"file": ("test.png", io.BytesIO(sample_image), "image/png")}
+            files=[("files", ("test.png", io.BytesIO(sample_image), "image/png"))]
         )
 
         assert response.status_code == 200
         data = response.json()
         assert "job_id" in data
         assert data["filename"] == "test.png"
+        assert data["image_count"] == 1
         assert "message" in data
 
     def test_upload_jpeg_success(self, client):
@@ -125,7 +126,7 @@ class TestUploadEndpoint:
 
         response = client.post(
             "/api/upload",
-            files={"file": ("test.jpg", io.BytesIO(jpeg_data), "image/jpeg")}
+            files=[("files", ("test.jpg", io.BytesIO(jpeg_data), "image/jpeg"))]
         )
 
         assert response.status_code == 200
@@ -134,7 +135,7 @@ class TestUploadEndpoint:
         """Test upload with unsupported file type."""
         response = client.post(
             "/api/upload",
-            files={"file": ("test.bmp", io.BytesIO(b"fake"), "image/bmp")}
+            files=[("files", ("test.bmp", io.BytesIO(b"fake"), "image/bmp"))]
         )
 
         assert response.status_code == 400
@@ -144,13 +145,29 @@ class TestUploadEndpoint:
         """Test that upload creates a job in storage."""
         response = client.post(
             "/api/upload",
-            files={"file": ("test.png", io.BytesIO(sample_image), "image/png")}
+            files=[("files", ("test.png", io.BytesIO(sample_image), "image/png"))]
         )
 
         job_id = response.json()["job_id"]
         assert job_id in jobs
         assert jobs[job_id].filename == "test.png"
         assert jobs[job_id].image_bytes == sample_image
+
+    def test_upload_multiple_images(self, client, sample_image):
+        """Test uploading multiple images."""
+        response = client.post(
+            "/api/upload",
+            files=[
+                ("files", ("test1.png", io.BytesIO(sample_image), "image/png")),
+                ("files", ("test2.png", io.BytesIO(sample_image), "image/png")),
+            ]
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["image_count"] == 2
+        job_id = data["job_id"]
+        assert jobs[job_id].image_count == 2
 
 
 # =============================================================================
@@ -172,14 +189,14 @@ class TestExtractEndpoint:
         # Upload first
         upload_response = client.post(
             "/api/upload",
-            files={"file": ("test.png", io.BytesIO(sample_image), "image/png")}
+            files=[("files", ("test.png", io.BytesIO(sample_image), "image/png"))]
         )
         job_id = upload_response.json()["job_id"]
 
         # Mock the extractor
         with patch('main.FootprintExtractor') as mock_extractor_class:
             mock_extractor = Mock()
-            mock_extractor.extract_from_bytes.return_value = mock_extraction_response
+            mock_extractor.extract_from_bytes_multi.return_value = mock_extraction_response
             mock_extractor_class.return_value = mock_extractor
 
             response = client.get(f"/api/extract/{job_id}")
@@ -197,14 +214,14 @@ class TestExtractEndpoint:
         # Upload first
         upload_response = client.post(
             "/api/upload",
-            files={"file": ("test.png", io.BytesIO(sample_image), "image/png")}
+            files=[("files", ("test.png", io.BytesIO(sample_image), "image/png"))]
         )
         job_id = upload_response.json()["job_id"]
 
         # Mock the extractor
         with patch('main.FootprintExtractor') as mock_extractor_class:
             mock_extractor = Mock()
-            mock_extractor.extract_from_bytes.return_value = mock_extraction_response
+            mock_extractor.extract_from_bytes_multi.return_value = mock_extraction_response
             mock_extractor_class.return_value = mock_extractor
 
             # First extraction
@@ -213,20 +230,20 @@ class TestExtractEndpoint:
             response2 = client.get(f"/api/extract/{job_id}")
 
         # Extractor should only be called once
-        assert mock_extractor.extract_from_bytes.call_count == 1
+        assert mock_extractor.extract_from_bytes_multi.call_count == 1
         assert response1.json() == response2.json()
 
     def test_extract_with_model_parameter(self, client, sample_image, mock_extraction_response):
         """Test extraction with different model parameter."""
         upload_response = client.post(
             "/api/upload",
-            files={"file": ("test.png", io.BytesIO(sample_image), "image/png")}
+            files=[("files", ("test.png", io.BytesIO(sample_image), "image/png"))]
         )
         job_id = upload_response.json()["job_id"]
 
         with patch('main.FootprintExtractor') as mock_extractor_class:
             mock_extractor = Mock()
-            mock_extractor.extract_from_bytes.return_value = mock_extraction_response
+            mock_extractor.extract_from_bytes_multi.return_value = mock_extraction_response
             mock_extractor_class.return_value = mock_extractor
 
             response = client.get(f"/api/extract/{job_id}?model=opus")
@@ -246,7 +263,7 @@ class TestConfirmEndpoint:
         """Test confirm before extraction fails."""
         upload_response = client.post(
             "/api/upload",
-            files={"file": ("test.png", io.BytesIO(sample_image), "image/png")}
+            files=[("files", ("test.png", io.BytesIO(sample_image), "image/png"))]
         )
         job_id = upload_response.json()["job_id"]
 
@@ -260,14 +277,14 @@ class TestConfirmEndpoint:
         # Upload
         upload_response = client.post(
             "/api/upload",
-            files={"file": ("test.png", io.BytesIO(sample_image), "image/png")}
+            files=[("files", ("test.png", io.BytesIO(sample_image), "image/png"))]
         )
         job_id = upload_response.json()["job_id"]
 
         # Extract
         with patch('main.FootprintExtractor') as mock_extractor_class:
             mock_extractor = Mock()
-            mock_extractor.extract_from_bytes.return_value = mock_extraction_response
+            mock_extractor.extract_from_bytes_multi.return_value = mock_extraction_response
             mock_extractor_class.return_value = mock_extractor
             client.get(f"/api/extract/{job_id}")
 
@@ -293,13 +310,13 @@ class TestGenerateEndpoint:
         # Upload and extract
         upload_response = client.post(
             "/api/upload",
-            files={"file": ("test.png", io.BytesIO(sample_image), "image/png")}
+            files=[("files", ("test.png", io.BytesIO(sample_image), "image/png"))]
         )
         job_id = upload_response.json()["job_id"]
 
         with patch('main.FootprintExtractor') as mock_extractor_class:
             mock_extractor = Mock()
-            mock_extractor.extract_from_bytes.return_value = mock_extraction_response
+            mock_extractor.extract_from_bytes_multi.return_value = mock_extraction_response
             mock_extractor_class.return_value = mock_extractor
             client.get(f"/api/extract/{job_id}")
 
@@ -316,14 +333,14 @@ class TestGenerateEndpoint:
         # Upload
         upload_response = client.post(
             "/api/upload",
-            files={"file": ("test.png", io.BytesIO(sample_image), "image/png")}
+            files=[("files", ("test.png", io.BytesIO(sample_image), "image/png"))]
         )
         job_id = upload_response.json()["job_id"]
 
         # Extract
         with patch('main.FootprintExtractor') as mock_extractor_class:
             mock_extractor = Mock()
-            mock_extractor.extract_from_bytes.return_value = mock_extraction_response
+            mock_extractor.extract_from_bytes_multi.return_value = mock_extraction_response
             mock_extractor_class.return_value = mock_extractor
             client.get(f"/api/extract/{job_id}")
 
@@ -416,7 +433,7 @@ class TestJobManagement:
         """Test getting job status."""
         upload_response = client.post(
             "/api/upload",
-            files={"file": ("test.png", io.BytesIO(sample_image), "image/png")}
+            files=[("files", ("test.png", io.BytesIO(sample_image), "image/png"))]
         )
         job_id = upload_response.json()["job_id"]
 
@@ -432,7 +449,7 @@ class TestJobManagement:
         """Test deleting a job."""
         upload_response = client.post(
             "/api/upload",
-            files={"file": ("test.png", io.BytesIO(sample_image), "image/png")}
+            files=[("files", ("test.png", io.BytesIO(sample_image), "image/png"))]
         )
         job_id = upload_response.json()["job_id"]
 

@@ -185,6 +185,7 @@ python run_extraction_test.py ../example_datasheets/so-8ep_crop.png --model haik
 - [x] Footprint outline calculated from pad bounds (surrounds all pads with clearance)
 - [x] Preview canvas zoom controls (+/−/Fit buttons and mouse wheel)
 - [x] Preview canvas pan/drag support (click and drag to move view)
+- [x] Multiple image upload support for better extraction context
 
 ## Day 3: Polish + Testing + Deploy
 

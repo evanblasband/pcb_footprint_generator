@@ -11,6 +11,7 @@ function ControlPanel({
   pin1Required,
   selectedPin1,
   partNumber,
+  imageCount = 1,
   onPartNumberChange,
   onExtract,
   onConfirm,
@@ -45,7 +46,7 @@ function ControlPanel({
       {/* Status indicator */}
       <div className="bg-bg-tertiary rounded-lg p-4 space-y-3">
         <StatusStep
-          label="Upload"
+          label={imageCount > 1 ? `Upload (${imageCount} images)` : "Upload"}
           status={getStepStatus('upload', jobStatus)}
         />
         <StatusStep

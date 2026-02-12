@@ -18,10 +18,11 @@ Hardware engineers frequently encounter components without existing PCB footprin
 ## Features
 
 - **AI Vision Extraction**: Upload, drag-drop, or paste (Ctrl+V) datasheet images
+- **Multiple Image Support**: Upload multiple images (dimension drawings, pin diagrams, tables) for better accuracy
 - **Confidence Scoring**: Low-confidence values highlighted in yellow/orange
 - **Standard Package Detection**: Detects IPC-7351 packages and redirects to Altium's IPC wizard
 - **Pin 1 Selection**: Interactive click-to-select when AI is uncertain
-- **2D Preview**: Visual verification with pad spacing dimensions displayed
+- **2D Preview**: Visual verification with zoom/pan and pad spacing dimensions
 - **Part Number Input**: Custom filename for downloads
 - **Altium Export**: Script Project package (.zip) with .PrjScr and .pas files
 
@@ -118,11 +119,13 @@ The app will be available at http://localhost:5173 (or 5174 if 5173 is in use).
 
 ## Usage
 
-1. **Upload**: Drag-drop, paste (Ctrl+V), or click to upload a cropped datasheet image
+1. **Upload**: Drag-drop, paste (Ctrl+V), or click to upload datasheet images
+   - Upload multiple images (dimension drawing, pin diagram, tables) for better accuracy
+   - Click "Upload X Images" when ready
 2. **Part Number**: Enter the component part number (used for filename)
 3. **Extract**: Click "Extract Dimensions" - review results with confidence highlighting
 4. **Pin 1**: If prompted, click on the preview canvas to select Pin 1
-5. **Verify**: Check pad spacing dimensions shown on the 2D preview
+5. **Verify**: Use zoom/pan controls to check pad spacing dimensions on the 2D preview
 6. **Download**: Get the Script Project package (.zip)
 7. **Run in Altium**:
    - Extract the zip file

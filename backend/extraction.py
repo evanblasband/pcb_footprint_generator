@@ -205,7 +205,7 @@ class FootprintExtractor:
         media_type: str
     ) -> ExtractionResponse:
         """
-        Extract footprint from image bytes.
+        Extract footprint from image bytes (single image).
 
         Args:
             image_bytes: Raw image bytes
@@ -214,18 +214,62 @@ class FootprintExtractor:
         Returns:
             ExtractionResponse with extracted footprint or error
         """
-        # Validate media type
-        if media_type not in SUPPORTED_MEDIA_TYPES:
+        return self.extract_from_bytes_multi([(image_bytes, media_type)])
+
+    def extract_from_bytes_multi(
+        self,
+        images: list[tuple[bytes, str]]
+    ) -> ExtractionResponse:
+        """
+        Extract footprint from multiple image bytes.
+
+        Multiple images provide additional context for more accurate extraction.
+        Images might include dimension drawings, pin diagrams, tables, etc.
+
+        Args:
+            images: List of (image_bytes, media_type) tuples
+
+        Returns:
+            ExtractionResponse with extracted footprint or error
+        """
+        if not images:
             return ExtractionResponse(
                 success=False,
-                error=f"Unsupported media type: {media_type}. Supported: {SUPPORTED_MEDIA_TYPES}"
+                error="At least one image is required"
             )
 
-        # Encode image as base64
-        image_base64 = base64.b64encode(image_bytes).decode("utf-8")
+        # Validate and encode all images
+        content_parts = []
+        for i, (image_bytes, media_type) in enumerate(images):
+            # Validate media type
+            if media_type not in SUPPORTED_MEDIA_TYPES:
+                return ExtractionResponse(
+                    success=False,
+                    error=f"Image {i+1}: Unsupported media type: {media_type}. Supported: {SUPPORTED_MEDIA_TYPES}"
+                )
 
-        # Get extraction prompt
+            # Encode image as base64
+            image_base64 = base64.b64encode(image_bytes).decode("utf-8")
+
+            content_parts.append({
+                "type": "image",
+                "source": {
+                    "type": "base64",
+                    "media_type": media_type,
+                    "data": image_base64,
+                },
+            })
+
+        # Get extraction prompt with multi-image context
         prompt = get_extraction_prompt()
+        if len(images) > 1:
+            prompt = f"I'm providing {len(images)} images from a component datasheet. Use ALL images to extract the most accurate footprint dimensions. Cross-reference information between images to verify values and resolve ambiguities.\n\n" + prompt
+
+        # Add text prompt at the end
+        content_parts.append({
+            "type": "text",
+            "text": prompt,
+        })
 
         try:
             # Call Claude API
@@ -235,20 +279,7 @@ class FootprintExtractor:
                 messages=[
                     {
                         "role": "user",
-                        "content": [
-                            {
-                                "type": "image",
-                                "source": {
-                                    "type": "base64",
-                                    "media_type": media_type,
-                                    "data": image_base64,
-                                },
-                            },
-                            {
-                                "type": "text",
-                                "text": prompt,
-                            },
-                        ],
+                        "content": content_parts,
                     }
                 ],
             )
