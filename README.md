@@ -17,12 +17,13 @@ Hardware engineers frequently encounter components without existing PCB footprin
 
 ## Features
 
-- **AI Vision Extraction**: Upload cropped datasheet images or PDF pages
+- **AI Vision Extraction**: Upload, drag-drop, or paste (Ctrl+V) datasheet images
 - **Confidence Scoring**: Low-confidence values highlighted in yellow/orange
 - **Standard Package Detection**: Detects IPC-7351 packages and redirects to Altium's IPC wizard
-- **Pin 1 Selection**: Interactive selection when AI is uncertain
-- **2D Preview**: Visual verification of pad positions and dimensions
-- **Altium Export**: DelphiScript (.pas) files that create footprints in Altium Designer 26
+- **Pin 1 Selection**: Interactive click-to-select when AI is uncertain
+- **2D Preview**: Visual verification with pad spacing dimensions displayed
+- **Part Number Input**: Custom filename for downloads
+- **Altium Export**: Script Project package (.zip) with .PrjScr and .pas files
 
 ## Tech Stack
 
@@ -110,19 +111,24 @@ The app will be available at http://localhost:5173 (or 5174 if 5173 is in use).
 | POST | `/api/upload` | Upload image (PNG/JPEG/GIF/WebP), returns job_id |
 | GET | `/api/extract/{job_id}?model=sonnet` | Extract dimensions with confidence (model: haiku/sonnet/opus) |
 | POST | `/api/confirm/{job_id}` | Confirm dimensions + Pin 1 selection |
-| GET | `/api/generate/{job_id}` | Download DelphiScript (.pas) file |
+| GET | `/api/generate/{job_id}` | Download Script Project package (.zip) |
 | POST | `/api/detect-standard` | Check for IPC-7351 standard packages |
 | GET | `/api/job/{job_id}/status` | Get job status |
 | DELETE | `/api/job/{job_id}` | Delete job |
 
 ## Usage
 
-1. **Upload**: Drag-drop or click to upload a cropped datasheet image showing the land pattern
-2. **Review**: Check extracted dimensions, yellow highlights indicate uncertain values
-3. **Pin 1**: If prompted, click to select Pin 1 location on the preview
-4. **Confirm**: Verify the 2D preview matches expected footprint
-5. **Download**: Get the DelphiScript (.pas) file
-6. **Import to Altium**: Open Altium Designer → Run script in a PCB Library document
+1. **Upload**: Drag-drop, paste (Ctrl+V), or click to upload a cropped datasheet image
+2. **Part Number**: Enter the component part number (used for filename)
+3. **Extract**: Click "Extract Dimensions" - review results with confidence highlighting
+4. **Pin 1**: If prompted, click on the preview canvas to select Pin 1
+5. **Verify**: Check pad spacing dimensions shown on the 2D preview
+6. **Download**: Get the Script Project package (.zip)
+7. **Run in Altium**:
+   - Extract the zip file
+   - Open the `.PrjScr` file in Altium Designer
+   - Open/create a PCB Library document
+   - Run the script (DXP → Run Script → select the procedure)
 
 ## Supported Pad Types
 

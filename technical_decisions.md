@@ -35,17 +35,19 @@ Use **DelphiScript (.pas)** files that users run inside Altium Designer.
 - Native `.PcbLib` format is binary OLE compound document, not ASCII
 - Altium's "ASCII export" feature creates a different format than what Altium imports
 
-### User Workflow
-1. Open Altium Designer 26
-2. Open Script Project (`FootprintScripts.PrjScr`)
-3. Create/open a PCB Library document
-4. Run the desired `.pas` script via Run → Script
-5. Footprint is created in the library
+### User Workflow (Updated 2026-02-12)
+1. Download Script Project package (.zip) from web app
+2. Extract zip file (contains `.PrjScr` + `.pas` files)
+3. Open Altium Designer 26
+4. Open the `.PrjScr` file (File → Open)
+5. Create/open a PCB Library document
+6. Run the script via DXP → Run Script → Select procedure
+7. Footprint is created in the library
 
 ### Consequences
-- Slightly more complex user workflow (must run script)
+- Complete package provided - no manual project setup needed
 - Full access to Altium's pad/via/track creation API
-- Future enhancement: Could automate script execution via Altium's command line
+- Human-readable scripts that users can modify if needed
 
 ---
 
@@ -486,8 +488,47 @@ Need to integrate Claude Vision API for extracting footprint dimensions from dat
 
 ---
 
+## TD-011: Script Project Package (.zip)
+
+**Date:** 2026-02-12
+**Status:** Implemented
+
+### Context
+Individual `.pas` files require users to manually create a Script Project in Altium before running scripts. This adds friction to the workflow.
+
+### Decision
+Generate a complete Script Project package as a `.zip` file containing:
+- `{PartNumber}.PrjScr` - Altium Script Project file
+- `{PartNumber}.pas` - DelphiScript footprint generator
+
+### Rationale
+1. **Reduced friction** - Users can open the project directly without manual setup
+2. **Self-contained** - All necessary files in one download
+3. **Correct references** - .PrjScr file automatically references the .pas file
+4. **Part number naming** - User-provided part number used for filenames
+
+### .PrjScr Format
+Simple INI-style format:
+```ini
+[Design]
+Version=1.0
+ProjectType=Script
+...
+
+[Document1]
+DocumentPath=PartNumber.pas
+AnnotationEnabled=1
+```
+
+### Consequences
+- Download is now `.zip` instead of `.pas`
+- Users must extract before opening in Altium
+- Cleaner workflow overall
+
+---
+
 ## Future Decisions (To Be Made)
 
-- **TD-011:** Production deployment strategy (Railway configuration)
-- **TD-012:** Rate limiting and abuse prevention
-- **TD-013:** Error recovery for partial extractions
+- **TD-012:** Production deployment strategy (Railway configuration)
+- **TD-013:** Rate limiting and abuse prevention
+- **TD-014:** Error recovery for partial extractions

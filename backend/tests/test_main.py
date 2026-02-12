@@ -310,7 +310,9 @@ class TestGenerateEndpoint:
         assert "not confirmed" in response.json()["detail"].lower()
 
     def test_generate_success(self, client, sample_image, mock_extraction_response):
-        """Test successful script generation."""
+        """Test successful script package generation (zip with .PrjScr and .pas)."""
+        import zipfile
+
         # Upload
         upload_response = client.post(
             "/api/upload",
@@ -332,15 +334,30 @@ class TestGenerateEndpoint:
         response = client.get(f"/api/generate/{job_id}")
 
         assert response.status_code == 200
-        assert response.headers["content-type"] == "text/plain; charset=utf-8"
+        assert response.headers["content-type"] == "application/zip"
         assert "attachment" in response.headers["content-disposition"]
-        assert ".pas" in response.headers["content-disposition"]
+        assert ".zip" in response.headers["content-disposition"]
 
-        # Check content is valid DelphiScript
-        content = response.text
-        assert "Procedure" in content  # Pascal case in DelphiScript
-        assert "PCBServer" in content
-        assert "TEST-FOOTPRINT" in content
+        # Check zip contents
+        zip_buffer = io.BytesIO(response.content)
+        with zipfile.ZipFile(zip_buffer, 'r') as zf:
+            file_names = zf.namelist()
+            # Should contain .PrjScr and .pas files
+            assert any(f.endswith('.PrjScr') for f in file_names)
+            assert any(f.endswith('.pas') for f in file_names)
+
+            # Check .pas content is valid DelphiScript
+            pas_file = [f for f in file_names if f.endswith('.pas')][0]
+            content = zf.read(pas_file).decode('utf-8')
+            assert "Procedure" in content  # Pascal case in DelphiScript
+            assert "PCBServer" in content
+            assert "TEST_FOOTPRINT" in content  # Underscores due to sanitization
+
+            # Check .PrjScr references the .pas file
+            prjscr_file = [f for f in file_names if f.endswith('.PrjScr')][0]
+            prjscr_content = zf.read(prjscr_file).decode('utf-8')
+            assert "ProjectType=Script" in prjscr_content
+            assert pas_file in prjscr_content
 
 
 # =============================================================================

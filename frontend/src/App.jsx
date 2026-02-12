@@ -143,11 +143,11 @@ function App() {
       }
 
       // Use part number for filename, or fall back to server-provided name
-      let filename = 'footprint.pas'
+      let filename = 'FootprintScript.zip'
       if (partNumber.trim()) {
         // Sanitize part number for use as filename
         const sanitized = partNumber.trim().replace(/[^a-zA-Z0-9-_]/g, '_')
-        filename = `${sanitized}.pas`
+        filename = `${sanitized}_ScriptProject.zip`
       } else {
         // Get filename from Content-Disposition header
         const disposition = response.headers.get('Content-Disposition')

@@ -175,6 +175,14 @@ python run_extraction_test.py ../example_datasheets/so-8ep_crop.png --model haik
 - Inter font family
 - Confidence color coding (green/yellow/orange)
 
+### UI Improvements ✅ COMPLETE
+- [x] Clipboard paste support (Ctrl+V) for image upload
+- [x] Part number input field for custom download filename
+- [x] Pin 1 indicator - small solid dot outside pad (matches generated footprint)
+- [x] Download step shows green checkmark after completion
+- [x] Pad spacing dimensions displayed on preview canvas (X and Y pitch)
+- [x] Script Project package (.zip) with .PrjScr + .pas files
+
 ## Day 3: Polish + Testing + Deploy
 
 ### Testing with Ground Truth

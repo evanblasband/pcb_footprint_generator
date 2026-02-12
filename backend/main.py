@@ -14,6 +14,7 @@ Usage:
 
 import io
 import uuid
+import zipfile
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional
@@ -370,10 +371,11 @@ async def confirm_extraction(job_id: str, request: ConfirmRequest):
 @app.get("/api/generate/{job_id}")
 async def generate_footprint(job_id: str):
     """
-    Generate and download the DelphiScript (.pas) footprint file.
+    Generate and download a Script Project package (.zip) containing:
+    - .PrjScr file (Altium Script Project)
+    - .pas file (DelphiScript footprint generator)
 
-    The file can be run in Altium Designer to create the footprint
-    in a PCB Library.
+    The package can be opened in Altium Designer to run the script.
     """
     job = get_job(job_id)
 
@@ -383,20 +385,64 @@ async def generate_footprint(job_id: str):
             detail="Extraction not confirmed. Call /api/confirm first."
         )
 
-    # Generate DelphiScript
+    footprint_name = job.confirmed_footprint.name
+    safe_name = _safe_filename(footprint_name)
+
+    # Generate DelphiScript content
     generator = DelphiScriptGenerator(job.confirmed_footprint)
     script_content = generator.generate()
 
-    # Return as downloadable file
-    filename = f"{job.confirmed_footprint.name}.pas"
+    # Generate .PrjScr project file content
+    prjscr_content = _generate_prjscr(safe_name)
+
+    # Create zip file in memory
+    zip_buffer = io.BytesIO()
+    with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zf:
+        # Add script project file
+        zf.writestr(f"{safe_name}.PrjScr", prjscr_content)
+        # Add DelphiScript file
+        zf.writestr(f"{safe_name}.pas", script_content)
+
+    zip_buffer.seek(0)
 
     return Response(
-        content=script_content,
-        media_type="text/plain",
+        content=zip_buffer.getvalue(),
+        media_type="application/zip",
         headers={
-            "Content-Disposition": f'attachment; filename="{filename}"'
+            "Content-Disposition": f'attachment; filename="{safe_name}_ScriptProject.zip"'
         }
     )
+
+
+def _generate_prjscr(script_name: str) -> str:
+    """Generate Altium Script Project (.PrjScr) file content."""
+    return f"""[Design]
+Version=1.0
+HierarchyMode=0
+ChannelRoomNamingStyle=0
+OutputPath=
+ChannelDesignatorFormatString=$Component_$RoomName
+ChannelRoomLevelSeperator=_
+ReleasesFolder=
+DesignCapture=
+ProjectType=Script
+LockPanelState=0
+
+[Document1]
+DocumentPath={script_name}.pas
+AnnotationEnabled=1
+"""
+
+
+def _safe_filename(name: str) -> str:
+    """Convert name to safe filename (no special characters)."""
+    safe = ""
+    for c in name:
+        if c.isalnum() or c in "-_":
+            safe += c
+        else:
+            safe += "_"
+    return safe or "Footprint"
 
 
 @app.post("/api/detect-standard")

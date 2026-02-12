@@ -130,11 +130,11 @@ function ControlPanel({
               className="w-full bg-accent text-text-dark font-semibold py-3 px-4 rounded-lg
                 hover:bg-accent-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Download .pas File
+              Download Script Package
             </button>
             {partNumber.trim() && (
               <p className="text-xs text-text-secondary text-center">
-                Filename: {partNumber.trim().replace(/[^a-zA-Z0-9-_]/g, '_')}.pas
+                {partNumber.trim().replace(/[^a-zA-Z0-9-_]/g, '_')}_ScriptProject.zip
               </p>
             )}
           </div>
