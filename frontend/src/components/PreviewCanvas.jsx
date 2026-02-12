@@ -101,16 +101,17 @@ function PreviewCanvas({ footprint, selectedPin1, pin1Required, onSelectPin1 }) 
       return
     }
 
+    // Calculate outline bounds for consistent positioning
+    const outlineBounds = calculateOutlineBounds(footprint.pads, 0.3)
+
     // Draw outline
-    if (footprint.outline) {
-      drawOutline(ctx, footprint.outline, scale, offset, MM_TO_PX)
-    }
+    drawOutline(ctx, footprint.outline, scale, offset, MM_TO_PX, footprint.pads)
 
     // Draw pads
     footprint.pads.forEach((pad, index) => {
       const isPin1 = selectedPin1 === index
       const isHovered = hoveredPad === index
-      drawPad(ctx, pad, index, scale, offset, MM_TO_PX, isPin1, isHovered, pin1Required)
+      drawPad(ctx, pad, index, scale, offset, MM_TO_PX, isPin1, isHovered, pin1Required, outlineBounds)
     })
 
     // Draw spacing dimensions
@@ -253,10 +254,25 @@ function drawOrigin(ctx, scale, offset) {
 
 /**
  * Draw spacing dimensions between pads.
- * Shows X and Y pitch measurements.
+ * Shows X and Y pitch measurements outside the component bounds.
  */
 function drawSpacingDimensions(ctx, pads, scale, offset, MM_TO_PX) {
   if (!pads || pads.length < 2) return
+
+  // Calculate bounding box of all pads (in mm)
+  let minX = Infinity, maxX = -Infinity
+  let minY = Infinity, maxY = -Infinity
+
+  pads.forEach(pad => {
+    const halfW = (pad.width || 0.5) / 2
+    const halfH = (pad.height || 0.5) / 2
+    minX = Math.min(minX, pad.x - halfW)
+    maxX = Math.max(maxX, pad.x + halfW)
+    minY = Math.min(minY, pad.y - halfH)
+    maxY = Math.max(maxY, pad.y + halfH)
+  })
+
+  const bounds = { minX, maxX, minY, maxY }
 
   // Find X spacing (horizontal pitch)
   const xSpacing = findPadSpacing(pads, 'x')
@@ -270,16 +286,16 @@ function drawSpacingDimensions(ctx, pads, scale, offset, MM_TO_PX) {
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
 
-  // Draw X dimension if found
+  // Draw X dimension if found (above all pads)
   if (xSpacing) {
     const { pad1, pad2, distance } = xSpacing
-    drawDimensionLine(ctx, pad1, pad2, distance, 'x', scale, offset, MM_TO_PX)
+    drawDimensionLine(ctx, pad1, pad2, distance, 'x', scale, offset, MM_TO_PX, bounds)
   }
 
-  // Draw Y dimension if found
+  // Draw Y dimension if found (to the left of all pads)
   if (ySpacing) {
     const { pad1, pad2, distance } = ySpacing
-    drawDimensionLine(ctx, pad1, pad2, distance, 'y', scale, offset, MM_TO_PX)
+    drawDimensionLine(ctx, pad1, pad2, distance, 'y', scale, offset, MM_TO_PX, bounds)
   }
 }
 
@@ -334,26 +350,34 @@ function findPadSpacing(pads, direction) {
 
 /**
  * Draw a dimension line between two pads.
+ * Positions dimension lines outside the component bounds.
  */
-function drawDimensionLine(ctx, pad1, pad2, distance, direction, scale, offset, MM_TO_PX) {
-  // Convert to canvas coordinates
+function drawDimensionLine(ctx, pad1, pad2, distance, direction, scale, offset, MM_TO_PX, bounds) {
+  // Convert pad positions to canvas coordinates
   const x1 = offset.x + pad1.x * MM_TO_PX * scale
   const y1 = offset.y - pad1.y * MM_TO_PX * scale
   const x2 = offset.x + pad2.x * MM_TO_PX * scale
   const y2 = offset.y - pad2.y * MM_TO_PX * scale
 
-  const dimOffset = 20 * scale // Offset from pads
+  // Convert bounds to canvas coordinates
+  const boundsTop = offset.y - bounds.maxY * MM_TO_PX * scale    // maxY is top in mm
+  const boundsBottom = offset.y - bounds.minY * MM_TO_PX * scale // minY is bottom in mm
+  const boundsLeft = offset.x + bounds.minX * MM_TO_PX * scale
+  const boundsRight = offset.x + bounds.maxX * MM_TO_PX * scale
+
+  const dimOffset = 25 * scale // Offset from bounds
+  const extensionGap = 5
 
   if (direction === 'x') {
-    // Horizontal dimension - draw above or below pads
-    const dimY = Math.min(y1, y2) - dimOffset
+    // Horizontal dimension - draw ABOVE all pads (outside bounds)
+    const dimY = boundsTop - dimOffset
 
-    // Extension lines
+    // Extension lines from pads up to dimension line
     ctx.beginPath()
-    ctx.moveTo(x1, y1 - 5)
-    ctx.lineTo(x1, dimY - 5)
-    ctx.moveTo(x2, y2 - 5)
-    ctx.lineTo(x2, dimY - 5)
+    ctx.moveTo(x1, boundsTop - extensionGap)
+    ctx.lineTo(x1, dimY - extensionGap)
+    ctx.moveTo(x2, boundsTop - extensionGap)
+    ctx.lineTo(x2, dimY - extensionGap)
     ctx.stroke()
 
     // Dimension line with arrows
@@ -374,15 +398,15 @@ function drawDimensionLine(ctx, pad1, pad2, distance, direction, scale, offset, 
     ctx.fillText(`${distance.toFixed(2)}mm`, textX, dimY)
 
   } else {
-    // Vertical dimension - draw to left or right of pads
-    const dimX = Math.min(x1, x2) - dimOffset
+    // Vertical dimension - draw to the LEFT of all pads (outside bounds)
+    const dimX = boundsLeft - dimOffset
 
-    // Extension lines
+    // Extension lines from pads to dimension line
     ctx.beginPath()
-    ctx.moveTo(x1 - 5, y1)
-    ctx.lineTo(dimX - 5, y1)
-    ctx.moveTo(x2 - 5, y2)
-    ctx.lineTo(dimX - 5, y2)
+    ctx.moveTo(boundsLeft - extensionGap, y1)
+    ctx.lineTo(dimX - extensionGap, y1)
+    ctx.moveTo(boundsLeft - extensionGap, y2)
+    ctx.lineTo(dimX - extensionGap, y2)
     ctx.stroke()
 
     // Dimension line with arrows
@@ -443,22 +467,69 @@ function drawArrow(ctx, x, y, direction) {
 }
 
 /**
- * Draw component outline.
+ * Calculate outline bounds from pads with clearance.
+ * Returns the outline rectangle in mm coordinates.
  */
-function drawOutline(ctx, outline, scale, offset, MM_TO_PX) {
-  const w = outline.width * MM_TO_PX * scale
-  const h = outline.height * MM_TO_PX * scale
+function calculateOutlineBounds(pads, clearance = 0.3) {
+  if (!pads || pads.length === 0) return null
+
+  let minX = Infinity, maxX = -Infinity
+  let minY = Infinity, maxY = -Infinity
+
+  pads.forEach(pad => {
+    const halfW = (pad.width || 0.5) / 2
+    const halfH = (pad.height || 0.5) / 2
+    minX = Math.min(minX, pad.x - halfW)
+    maxX = Math.max(maxX, pad.x + halfW)
+    minY = Math.min(minY, pad.y - halfH)
+    maxY = Math.max(maxY, pad.y + halfH)
+  })
+
+  // Add clearance
+  return {
+    minX: minX - clearance,
+    maxX: maxX + clearance,
+    minY: minY - clearance,
+    maxY: maxY + clearance,
+    width: (maxX - minX) + 2 * clearance,
+    height: (maxY - minY) + 2 * clearance,
+    centerX: (minX + maxX) / 2,
+    centerY: (minY + maxY) / 2,
+  }
+}
+
+/**
+ * Draw component outline.
+ * Calculates bounds from pads to ensure outline surrounds all pads.
+ */
+function drawOutline(ctx, outline, scale, offset, MM_TO_PX, pads) {
+  // Calculate bounds from pads with clearance
+  const bounds = calculateOutlineBounds(pads, 0.3) // 0.3mm clearance
+
+  if (!bounds) {
+    // Fallback to outline dimensions if no pads
+    const w = (outline?.width || 4) * MM_TO_PX * scale
+    const h = (outline?.height || 4) * MM_TO_PX * scale
+
+    ctx.strokeStyle = '#e6fb53'
+    ctx.lineWidth = 2
+    ctx.setLineDash([5, 5])
+    ctx.strokeRect(offset.x - w / 2, offset.y - h / 2, w, h)
+    ctx.setLineDash([])
+    return
+  }
+
+  // Convert bounds to canvas coordinates
+  const x1 = offset.x + bounds.minX * MM_TO_PX * scale
+  const y1 = offset.y - bounds.maxY * MM_TO_PX * scale // maxY is top in mm, but lower Y in canvas
+  const w = bounds.width * MM_TO_PX * scale
+  const h = bounds.height * MM_TO_PX * scale
 
   ctx.strokeStyle = '#e6fb53'
   ctx.lineWidth = 2
   ctx.setLineDash([5, 5])
 
-  ctx.strokeRect(
-    offset.x - w / 2,
-    offset.y - h / 2,
-    w,
-    h
-  )
+  ctx.strokeRect(x1, y1, w, h)
 
   ctx.setLineDash([])
 }
@@ -466,7 +537,7 @@ function drawOutline(ctx, outline, scale, offset, MM_TO_PX) {
 /**
  * Draw a single pad.
  */
-function drawPad(ctx, pad, index, scale, offset, MM_TO_PX, isPin1, isHovered, pin1Required) {
+function drawPad(ctx, pad, index, scale, offset, MM_TO_PX, isPin1, isHovered, pin1Required, outlineBounds) {
   const x = offset.x + pad.x * MM_TO_PX * scale
   const y = offset.y - pad.y * MM_TO_PX * scale // Flip Y
   const w = (pad.width || 0.5) * MM_TO_PX * scale
@@ -519,33 +590,28 @@ function drawPad(ctx, pad, index, scale, offset, MM_TO_PX, isPin1, isHovered, pi
   ctx.textBaseline = 'middle'
   ctx.fillText(pad.designator || String(index + 1), x, y)
 
-  // Draw Pin 1 indicator - small solid dot outside the pad
-  if (isPin1) {
-    const dotRadius = 4 * scale // Small dot
-    const padRadius = Math.max(w, h) / 2
+  // Draw Pin 1 indicator - small solid dot OUTSIDE the outline
+  if (isPin1 && outlineBounds) {
+    const dotRadiusMM = 0.2 // Dot radius in mm
+    const dotRadius = dotRadiusMM * MM_TO_PX * scale
+    const gap = 0.25 // Gap between outline and dot in mm
 
-    // Position dot outside the pad, away from center (0,0)
-    // Determine direction based on pad position
-    const dirX = pad.x < 0 ? -1 : (pad.x > 0 ? 1 : 0)
-    const dirY = pad.y < 0 ? -1 : (pad.y > 0 ? 1 : 0)
+    // Determine which corner of the outline is closest to Pin 1
+    // Position the dot outside that corner
+    const cornerX = pad.x <= outlineBounds.centerX ? outlineBounds.minX : outlineBounds.maxX
+    const cornerY = pad.y <= outlineBounds.centerY ? outlineBounds.minY : outlineBounds.maxY
 
-    // Offset from pad edge
-    const offsetDist = (padRadius + dotRadius + 6 * scale)
-    let dotX = x
-    let dotY = y
+    // Direction from outline corner to outside
+    const dirX = cornerX < outlineBounds.centerX ? -1 : 1
+    const dirY = cornerY < outlineBounds.centerY ? -1 : 1
 
-    // Place dot in the corner direction (outside the footprint)
-    if (dirX !== 0) {
-      dotX = x + dirX * offsetDist
-    }
-    if (dirY !== 0) {
-      dotY = y - dirY * offsetDist // Flip Y for canvas
-    }
-    // If pad is at origin, default to upper-left
-    if (dirX === 0 && dirY === 0) {
-      dotX = x - offsetDist
-      dotY = y - offsetDist
-    }
+    // Position dot outside the outline corner
+    const dotMmX = cornerX + dirX * (gap + dotRadiusMM)
+    const dotMmY = cornerY + dirY * (gap + dotRadiusMM)
+
+    // Convert to canvas coordinates
+    const dotX = offset.x + dotMmX * MM_TO_PX * scale
+    const dotY = offset.y - dotMmY * MM_TO_PX * scale // Flip Y
 
     // Draw filled dot
     ctx.fillStyle = '#e6fb53'

@@ -286,24 +286,78 @@ class DelphiScriptGenerator:
         output.write("        NewComp.AddPCBObject(Via);\n")
         output.write("    End;\n\n")
 
+    def _calculate_pad_bounds(self, clearance: float = 0.3) -> dict:
+        """
+        Calculate bounding box of all pads with clearance.
+
+        Args:
+            clearance: Clearance around pads in mm
+
+        Returns:
+            Dictionary with minX, maxX, minY, maxY, width, height, centerX, centerY
+        """
+        if not self.footprint.pads:
+            return None
+
+        min_x = float('inf')
+        max_x = float('-inf')
+        min_y = float('inf')
+        max_y = float('-inf')
+
+        for pad in self.footprint.pads:
+            half_w = (pad.width or 0.5) / 2
+            half_h = (pad.height or 0.5) / 2
+            min_x = min(min_x, pad.x - half_w)
+            max_x = max(max_x, pad.x + half_w)
+            min_y = min(min_y, pad.y - half_h)
+            max_y = max(max_y, pad.y + half_h)
+
+        return {
+            'minX': min_x - clearance,
+            'maxX': max_x + clearance,
+            'minY': min_y - clearance,
+            'maxY': max_y + clearance,
+            'width': (max_x - min_x) + 2 * clearance,
+            'height': (max_y - min_y) + 2 * clearance,
+            'centerX': (min_x + max_x) / 2,
+            'centerY': (min_y + max_y) / 2,
+        }
+
     def _write_outline_creation(self, output: TextIO, outline: Outline) -> None:
         """
         Write code to create silkscreen outline.
+        Calculates bounds from pads to ensure outline surrounds all pads.
 
         Args:
             output: Output stream
-            outline: Outline model
+            outline: Outline model (used for line_width only)
         """
-        half_w = outline.width / 2
-        half_h = outline.height / 2
+        # Calculate bounds from pads
+        bounds = self._calculate_pad_bounds(clearance=0.3)
+
+        if bounds:
+            # Use calculated bounds
+            min_x = bounds['minX']
+            max_x = bounds['maxX']
+            min_y = bounds['minY']
+            max_y = bounds['maxY']
+        else:
+            # Fallback to outline dimensions
+            half_w = outline.width / 2
+            half_h = outline.height / 2
+            min_x = -half_w
+            max_x = half_w
+            min_y = -half_h
+            max_y = half_h
+
         line_width = outline.line_width
 
         # Four corners
         corners = [
-            (-half_w, -half_h),
-            (half_w, -half_h),
-            (half_w, half_h),
-            (-half_w, half_h),
+            (min_x, min_y),
+            (max_x, min_y),
+            (max_x, max_y),
+            (min_x, max_y),
         ]
 
         output.write("    // --- Silkscreen Outline ---\n")
@@ -325,27 +379,32 @@ class DelphiScriptGenerator:
             output.write("    End;\n\n")
 
     def _write_pin1_indicator(self, output: TextIO) -> None:
-        """Write code to create Pin 1 indicator - small filled dot outside pad."""
+        """Write code to create Pin 1 indicator - small filled dot outside the outline."""
         pin1 = self._find_pin1()
         if not pin1:
             return
 
-        # Calculate position outside Pin 1 pad
-        # Direction is away from origin (component center)
-        dir_x = -1 if pin1.x < 0 else (1 if pin1.x > 0 else -1)
-        dir_y = -1 if pin1.y < 0 else (1 if pin1.y > 0 else 1)
+        # Get outline bounds
+        bounds = self._calculate_pad_bounds(clearance=0.3)
+        if not bounds:
+            return
 
-        # Offset from pad edge (half pad size + gap + dot radius)
-        pad_half_w = pin1.width / 2 if pin1.width else 0.3
-        pad_half_h = pin1.height / 2 if pin1.height else 0.3
-        gap = 0.2  # Gap between pad and dot
-        dot_radius = 0.15  # Small dot
+        gap = 0.25  # Gap between outline and dot
+        dot_radius = 0.2  # Small dot
 
-        # Position outside the pad
-        ind_x = pin1.x + dir_x * (pad_half_w + gap + dot_radius)
-        ind_y = pin1.y + dir_y * (pad_half_h + gap + dot_radius)
+        # Determine which corner of the outline is closest to Pin 1
+        corner_x = bounds['minX'] if pin1.x <= bounds['centerX'] else bounds['maxX']
+        corner_y = bounds['minY'] if pin1.y <= bounds['centerY'] else bounds['maxY']
 
-        output.write("    // --- Pin 1 Indicator (filled dot) ---\n")
+        # Direction from outline corner to outside
+        dir_x = -1 if corner_x < bounds['centerX'] else 1
+        dir_y = -1 if corner_y < bounds['centerY'] else 1
+
+        # Position dot outside the outline corner
+        ind_x = corner_x + dir_x * (gap + dot_radius)
+        ind_y = corner_y + dir_y * (gap + dot_radius)
+
+        output.write("    // --- Pin 1 Indicator (filled dot outside outline) ---\n")
         output.write("    Arc := PCBServer.PCBObjectFactory(eArcObject, eNoDimension, eCreate_Default);\n")
         output.write("    If Arc <> Nil Then\n")
         output.write("    Begin\n")

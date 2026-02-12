@@ -325,12 +325,13 @@ class TestOutlineCreation:
         assert "PCBServer.PCBObjectFactory(eTrackObject" in script
 
     def test_track_coordinates(self, footprint_with_outline):
-        """Test track coordinates."""
+        """Test track coordinates - calculated from pad bounds + clearance."""
         script = generate_delphiscript(footprint_with_outline)
 
-        # Should have corner coordinates (half of 5x4 = 2.5x2.0)
-        assert "Track.X1 := MMsToCoord(-2.5000)" in script
-        assert "Track.Y1 := MMsToCoord(-2.0000)" in script
+        # Outline is now calculated from pads (1x1 pad at 0,0) + 0.3mm clearance
+        # Expected bounds: -0.8 to 0.8 in both directions
+        assert "Track.X1 := MMsToCoord(-0.8000)" in script
+        assert "Track.Y1 := MMsToCoord(-0.8000)" in script
 
     def test_track_layer(self, footprint_with_outline):
         """Test track layer is TopOverlay."""

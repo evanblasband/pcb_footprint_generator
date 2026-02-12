@@ -178,10 +178,11 @@ python run_extraction_test.py ../example_datasheets/so-8ep_crop.png --model haik
 ### UI Improvements ✅ COMPLETE
 - [x] Clipboard paste support (Ctrl+V) for image upload
 - [x] Part number input field for custom download filename
-- [x] Pin 1 indicator - small solid dot outside pad (matches generated footprint)
+- [x] Pin 1 indicator - small solid dot outside outline (matches generated footprint)
 - [x] Download step shows green checkmark after completion
 - [x] Pad spacing dimensions displayed on preview canvas (X and Y pitch)
 - [x] Script Project package (.zip) with .PrjScr + .pas files
+- [x] Footprint outline calculated from pad bounds (surrounds all pads with clearance)
 
 ## Day 3: Polish + Testing + Deploy
 
@@ -236,6 +237,5 @@ python run_extraction_test.py ../example_datasheets/so-8ep_crop.png --model haik
 1. **Rounded Rectangle pads** render as Rectangular (user must manually set corner radius)
 2. **Slotted holes** may not have correct dimensions (API property unclear)
 3. **Script workflow** requires user to: Open project → Open library → Run script
-4. **Outline dimensions** are calculated from model, may overlap pads on some footprints
 
 See `technical_decisions.md` TD-009 for full details.
