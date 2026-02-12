@@ -10,6 +10,8 @@ function ControlPanel({
   error,
   pin1Required,
   selectedPin1,
+  partNumber,
+  onPartNumberChange,
   onExtract,
   onConfirm,
   onDownload,
@@ -61,6 +63,22 @@ function ControlPanel({
         />
       </div>
 
+      {/* Part number input */}
+      <div className="space-y-2">
+        <label className="block text-sm text-text-secondary">
+          Part Number <span className="text-text-muted">(for filename)</span>
+        </label>
+        <input
+          type="text"
+          value={partNumber}
+          onChange={(e) => onPartNumberChange(e.target.value)}
+          placeholder="e.g., LM358, STM32F103"
+          className="w-full bg-bg-tertiary border border-text-secondary/30 rounded-lg px-3 py-2
+            text-text-primary placeholder:text-text-muted
+            focus:outline-none focus:border-accent/50 transition-colors"
+        />
+      </div>
+
       {/* Action buttons */}
       <div className="space-y-3">
         {/* Extract button */}
@@ -105,14 +123,21 @@ function ControlPanel({
 
         {/* Download button */}
         {jobStatus === 'confirmed' && (
-          <button
-            onClick={onDownload}
-            disabled={isLoading}
-            className="w-full bg-accent text-text-dark font-semibold py-3 px-4 rounded-lg
-              hover:bg-accent-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            Download .pas File
-          </button>
+          <div className="space-y-1">
+            <button
+              onClick={onDownload}
+              disabled={isLoading}
+              className="w-full bg-accent text-text-dark font-semibold py-3 px-4 rounded-lg
+                hover:bg-accent-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Download .pas File
+            </button>
+            {partNumber.trim() && (
+              <p className="text-xs text-text-secondary text-center">
+                Filename: {partNumber.trim().replace(/[^a-zA-Z0-9-_]/g, '_')}.pas
+              </p>
+            )}
+          </div>
         )}
 
         {/* Loading indicator */}

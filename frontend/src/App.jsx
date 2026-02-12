@@ -22,6 +22,9 @@ function App() {
   const [selectedPin1, setSelectedPin1] = useState(null)
   const [pin1Required, setPin1Required] = useState(false)
 
+  // Part number for filename
+  const [partNumber, setPartNumber] = useState('')
+
   // Error state
   const [error, setError] = useState(null)
 
@@ -139,10 +142,20 @@ function App() {
         throw new Error(data.detail || 'Generation failed')
       }
 
-      // Get filename from Content-Disposition header
-      const disposition = response.headers.get('Content-Disposition')
-      const filenameMatch = disposition?.match(/filename="?(.+?)"?$/)
-      const filename = filenameMatch ? filenameMatch[1] : 'footprint.pas'
+      // Use part number for filename, or fall back to server-provided name
+      let filename = 'footprint.pas'
+      if (partNumber.trim()) {
+        // Sanitize part number for use as filename
+        const sanitized = partNumber.trim().replace(/[^a-zA-Z0-9-_]/g, '_')
+        filename = `${sanitized}.pas`
+      } else {
+        // Get filename from Content-Disposition header
+        const disposition = response.headers.get('Content-Disposition')
+        const filenameMatch = disposition?.match(/filename="?(.+?)"?$/)
+        if (filenameMatch) {
+          filename = filenameMatch[1]
+        }
+      }
 
       // Download the file
       const blob = await response.blob()
@@ -160,7 +173,7 @@ function App() {
       setError(err.message)
       setJobStatus('confirmed')
     }
-  }, [jobId])
+  }, [jobId, partNumber])
 
   /**
    * Reset to start over
@@ -172,6 +185,7 @@ function App() {
     setFootprint(null)
     setSelectedPin1(null)
     setPin1Required(false)
+    setPartNumber('')
     setError(null)
   }, [])
 
@@ -204,6 +218,8 @@ function App() {
                 error={error}
                 pin1Required={pin1Required}
                 selectedPin1={selectedPin1}
+                partNumber={partNumber}
+                onPartNumberChange={setPartNumber}
                 onExtract={handleExtract}
                 onConfirm={handleConfirm}
                 onDownload={handleDownload}
