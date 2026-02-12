@@ -36,11 +36,22 @@
 | TEST-ALL-SHAPES | ✅ Pass | Round, rectangular, oval working |
 
 ### Spike 2: Vision Model Extraction Test
-- [ ] Create extraction.py with Claude API integration
-- [ ] Create prompts.py with JSON schema extraction prompt
-- [ ] Test on example datasheet images
+- [x] Create extraction.py with Claude API integration (23 tests passing)
+- [x] Create prompts.py with JSON schema extraction prompt (23 tests passing)
+- [x] Create run_extraction_test.py script for testing
+- [ ] **Test on example datasheet images** (requires API key)
 - [ ] Implement table-variable format correlation
 - [ ] Assess Haiku accuracy
+
+#### Running Extraction Test
+```bash
+cd backend
+source venv/bin/activate
+export ANTHROPIC_API_KEY="your-key-here"
+python run_extraction_test.py  # Test all example images
+# Or test single image:
+python run_extraction_test.py ../example_datasheets/so-8ep_crop.png
+```
 
 ### Backend Core
 - [x] Create models.py with Pydantic schemas

@@ -415,8 +415,44 @@ During Altium Designer 26 testing, several API limitations were discovered.
 
 ---
 
+## TD-010: Extraction Module Architecture
+
+**Date:** 2026-02-11
+**Status:** Implemented
+
+### Context
+Need to integrate Claude Vision API for extracting footprint dimensions from datasheet images.
+
+### Design Decisions
+
+| Aspect | Decision | Rationale |
+|--------|----------|-----------|
+| Response format | JSON schema in prompt | Ensures structured, parseable output |
+| Error handling | Return ExtractionResponse with success flag | Explicit success/failure, no exceptions for user errors |
+| Confidence scoring | Per-pad + overall | Matches UI requirements for uncertainty highlighting |
+| Model flexibility | Model alias system | Easy swap between haiku/sonnet/opus |
+
+### Key Components
+- `FootprintExtractor` class - Main API wrapper
+- `ExtractionResponse` dataclass - Result container
+- `_response_to_footprint()` - Converts JSON to Pydantic models
+- `estimate_cost()` - Cost estimation for UI display
+
+### JSON Schema Approach
+- Embed full schema in prompt with field descriptions
+- Request "ONLY valid JSON, no other text"
+- Parse response, handle markdown code block wrapping
+- Validate against Pydantic models
+
+### Consequences
+- Consistent extraction format across models
+- Easy to add validation rules
+- Clear separation between API layer and business logic
+
+---
+
 ## Future Decisions (To Be Made)
 
-- **TD-010:** Production deployment strategy (Railway configuration)
-- **TD-011:** Rate limiting and abuse prevention
-- **TD-012:** Error recovery for partial extractions
+- **TD-011:** Production deployment strategy (Railway configuration)
+- **TD-012:** Rate limiting and abuse prevention
+- **TD-013:** Error recovery for partial extractions

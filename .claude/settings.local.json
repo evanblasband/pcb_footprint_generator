@@ -25,7 +25,8 @@
       "WebFetch(domain:help.solidworks.com)",
       "WebFetch(domain:www.phys.hawaii.edu)",
       "Bash(ls:*)",
-      "WebFetch(domain:techdocs.altium.com)"
+      "WebFetch(domain:techdocs.altium.com)",
+      "Bash(chmod:*)"
     ]
   }
 }
