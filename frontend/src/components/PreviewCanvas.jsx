@@ -8,11 +8,19 @@ function PreviewCanvas({ footprint, selectedPin1, pin1Required, onSelectPin1 }) 
   const canvasRef = useRef(null)
   const containerRef = useRef(null)
   const [scale, setScale] = useState(1)
+  const [baseScale, setBaseScale] = useState(1) // Scale that fits the footprint
+  const [zoomLevel, setZoomLevel] = useState(1) // User zoom multiplier
   const [offset, setOffset] = useState({ x: 0, y: 0 })
+  const [baseOffset, setBaseOffset] = useState({ x: 0, y: 0 }) // Offset for fit view
   const [hoveredPad, setHoveredPad] = useState(null)
 
   // Coordinate conversion (mm to canvas pixels)
   const MM_TO_PX = 50 // 50 pixels per mm
+
+  // Zoom limits
+  const MIN_ZOOM = 0.25
+  const MAX_ZOOM = 5
+  const ZOOM_STEP = 0.25
 
   /**
    * Calculate canvas dimensions and scale to fit footprint.
@@ -49,18 +57,22 @@ function PreviewCanvas({ footprint, selectedPin1, pin1Required, onSelectPin1 }) 
     // Calculate scale to fit
     const scaleX = (containerWidth - 40) / (fpWidth * MM_TO_PX)
     const scaleY = (containerHeight - 40) / (fpHeight * MM_TO_PX)
-    const newScale = Math.min(scaleX, scaleY, 2) // Cap at 2x
+    const fitScale = Math.min(scaleX, scaleY, 2) // Cap at 2x
 
     // Center offset
     const centerX = (minX + maxX) / 2
     const centerY = (minY + maxY) / 2
 
-    setScale(newScale)
-    setOffset({
-      x: containerWidth / 2 - centerX * MM_TO_PX * newScale,
-      y: containerHeight / 2 + centerY * MM_TO_PX * newScale, // Flip Y
-    })
-  }, [footprint])
+    const fitOffset = {
+      x: containerWidth / 2 - centerX * MM_TO_PX * fitScale * zoomLevel,
+      y: containerHeight / 2 + centerY * MM_TO_PX * fitScale * zoomLevel, // Flip Y
+    }
+
+    setBaseScale(fitScale)
+    setBaseOffset(fitOffset)
+    setScale(fitScale * zoomLevel)
+    setOffset(fitOffset)
+  }, [footprint, zoomLevel])
 
   // Recalculate on footprint change or resize
   useEffect(() => {
@@ -70,6 +82,36 @@ function PreviewCanvas({ footprint, selectedPin1, pin1Required, onSelectPin1 }) 
     window.addEventListener('resize', handleResize)
     return () => window.removeEventListener('resize', handleResize)
   }, [calculateTransform])
+
+  /**
+   * Handle zoom in.
+   */
+  const handleZoomIn = useCallback(() => {
+    setZoomLevel(prev => Math.min(prev + ZOOM_STEP, MAX_ZOOM))
+  }, [])
+
+  /**
+   * Handle zoom out.
+   */
+  const handleZoomOut = useCallback(() => {
+    setZoomLevel(prev => Math.max(prev - ZOOM_STEP, MIN_ZOOM))
+  }, [])
+
+  /**
+   * Reset zoom to fit.
+   */
+  const handleResetZoom = useCallback(() => {
+    setZoomLevel(1)
+  }, [])
+
+  /**
+   * Handle mouse wheel for zooming.
+   */
+  const handleWheel = useCallback((e) => {
+    e.preventDefault()
+    const delta = e.deltaY > 0 ? -ZOOM_STEP : ZOOM_STEP
+    setZoomLevel(prev => Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, prev + delta)))
+  }, [])
 
   /**
    * Draw the footprint on canvas.
@@ -173,6 +215,7 @@ function PreviewCanvas({ footprint, selectedPin1, pin1Required, onSelectPin1 }) 
         ref={canvasRef}
         onMouseMove={handleMouseMove}
         onClick={handleClick}
+        onWheel={handleWheel}
         className="w-full h-full"
       />
 
@@ -185,6 +228,31 @@ function PreviewCanvas({ footprint, selectedPin1, pin1Required, onSelectPin1 }) 
         </div>
       )}
 
+      {/* Zoom controls */}
+      <div className="absolute top-4 right-4 flex flex-col gap-1">
+        <button
+          onClick={handleZoomIn}
+          className="w-8 h-8 bg-bg-tertiary hover:bg-bg-secondary border border-text-secondary/30 rounded text-text-primary text-lg font-bold transition-colors"
+          title="Zoom in"
+        >
+          +
+        </button>
+        <button
+          onClick={handleResetZoom}
+          className="w-8 h-8 bg-bg-tertiary hover:bg-bg-secondary border border-text-secondary/30 rounded text-text-secondary text-xs transition-colors"
+          title="Reset zoom"
+        >
+          Fit
+        </button>
+        <button
+          onClick={handleZoomOut}
+          className="w-8 h-8 bg-bg-tertiary hover:bg-bg-secondary border border-text-secondary/30 rounded text-text-primary text-lg font-bold transition-colors"
+          title="Zoom out"
+        >
+          −
+        </button>
+      </div>
+
       {/* Hover tooltip */}
       {hoveredPad !== null && footprint?.pads?.[hoveredPad] && (
         <div className="absolute bottom-4 left-4 bg-bg-tertiary border border-text-secondary/30 rounded-lg px-3 py-2">
@@ -192,9 +260,9 @@ function PreviewCanvas({ footprint, selectedPin1, pin1Required, onSelectPin1 }) 
         </div>
       )}
 
-      {/* Scale indicator */}
+      {/* Zoom indicator */}
       <div className="absolute bottom-4 right-4 text-xs text-text-secondary">
-        Scale: {scale.toFixed(2)}x
+        {Math.round(zoomLevel * 100)}%
       </div>
     </div>
   )
