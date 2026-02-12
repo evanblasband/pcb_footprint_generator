@@ -510,12 +510,23 @@ class FootprintExtractor:
             height=float(outline_data.get("height", 0)),
         )
 
+        # Extract vias (thermal vias)
+        vias = []
+        for via_data in response.get("vias", []):
+            via = Via(
+                x=float(via_data.get("x", 0)),
+                y=float(via_data.get("y", 0)),
+                diameter=float(via_data.get("outer_diameter", 0.6)),
+                drill_diameter=float(via_data.get("drill_diameter", 0.3)),
+            )
+            vias.append(via)
+
         # Create footprint
         footprint = Footprint(
             name=response.get("footprint_name", "EXTRACTED"),
             description=f"Extracted from datasheet image",
             pads=pads,
-            vias=[],  # Vias not extracted from datasheets
+            vias=vias,
             outline=outline,
         )
 
@@ -537,7 +548,7 @@ class FootprintExtractor:
             standard_detected=response.get("standard_package_detected"),
             units="mm",
             pads=pads,
-            vias=[],
+            vias=vias,
             pin1_detected=pin1_detected,
             pin1_index=pin1_index,
             outline=outline,

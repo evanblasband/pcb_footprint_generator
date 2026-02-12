@@ -188,6 +188,13 @@ function PreviewCanvas({ footprint, selectedPin1, pin1Required, onSelectPin1 }) 
       drawPad(ctx, pad, index, scale, offset, MM_TO_PX, isPin1, isHovered, pin1Required, outlineBounds)
     })
 
+    // Draw vias (thermal vias)
+    if (footprint.vias?.length > 0) {
+      footprint.vias.forEach((via) => {
+        drawVia(ctx, via, scale, offset, MM_TO_PX)
+      })
+    }
+
     // Draw spacing dimensions
     drawSpacingDimensions(ctx, footprint.pads, scale, offset, MM_TO_PX)
 
@@ -741,6 +748,36 @@ function drawPad(ctx, pad, index, scale, offset, MM_TO_PX, isPin1, isHovered, pi
     ctx.arc(dotX, dotY, dotRadius, 0, Math.PI * 2)
     ctx.fill()
   }
+}
+
+/**
+ * Draw a thermal via.
+ * Vias are shown as small copper circles with a drill hole in the center.
+ */
+function drawVia(ctx, via, scale, offset, MM_TO_PX) {
+  const x = offset.x + via.x * MM_TO_PX * scale
+  const y = offset.y - via.y * MM_TO_PX * scale // Flip Y
+  const outerRadius = (via.diameter || 0.6) / 2 * MM_TO_PX * scale
+  const drillRadius = (via.drill_diameter || 0.3) / 2 * MM_TO_PX * scale
+
+  // Draw outer copper ring (annular ring)
+  ctx.fillStyle = '#a4904a' // Gold color for copper
+  ctx.beginPath()
+  ctx.arc(x, y, outerRadius, 0, Math.PI * 2)
+  ctx.fill()
+
+  // Draw drill hole
+  ctx.fillStyle = '#141311' // Dark background color for hole
+  ctx.beginPath()
+  ctx.arc(x, y, drillRadius, 0, Math.PI * 2)
+  ctx.fill()
+
+  // Draw thin border around via for visibility
+  ctx.strokeStyle = '#c0a060'
+  ctx.lineWidth = 1
+  ctx.beginPath()
+  ctx.arc(x, y, outerRadius, 0, Math.PI * 2)
+  ctx.stroke()
 }
 
 /**

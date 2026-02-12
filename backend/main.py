@@ -392,6 +392,15 @@ def _build_extract_response(job_id: str, result: ExtractionResponse) -> ExtractR
                 }
                 for p in result.footprint.pads
             ],
+            "vias": [
+                {
+                    "x": v.x,
+                    "y": v.y,
+                    "diameter": v.diameter,
+                    "drill_diameter": v.drill_diameter,
+                }
+                for v in result.footprint.vias
+            ] if result.footprint.vias else [],
             "outline": {
                 "width": result.footprint.outline.width,
                 "height": result.footprint.outline.height,

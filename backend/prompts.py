@@ -38,7 +38,7 @@ EXTRACTION_SCHEMA = {
                 "properties": {
                     "designator": {
                         "type": "string",
-                        "description": "Pin number or name (e.g., '1', '2', 'A1', 'GND')"
+                        "description": "Pin number or name (e.g., '1', '2', 'A1', 'EP', '9')"
                     },
                     "x": {
                         "type": "number",
@@ -50,11 +50,11 @@ EXTRACTION_SCHEMA = {
                     },
                     "width": {
                         "type": "number",
-                        "description": "Pad width in mm (X dimension)"
+                        "description": "Pad width in mm - the horizontal (X) dimension of the pad"
                     },
                     "height": {
                         "type": "number",
-                        "description": "Pad height in mm (Y dimension)"
+                        "description": "Pad height in mm - the vertical (Y) dimension of the pad"
                     },
                     "shape": {
                         "type": "string",
@@ -63,12 +63,12 @@ EXTRACTION_SCHEMA = {
                     },
                     "pad_type": {
                         "type": "string",
-                        "enum": ["smd", "th"],
-                        "description": "SMD (surface mount) or TH (through-hole)"
+                        "enum": ["smd", "th", "thermal"],
+                        "description": "SMD (surface mount), TH (through-hole), or thermal (exposed pad)"
                     },
                     "rotation": {
                         "type": "number",
-                        "description": "Pad rotation in degrees (0 = horizontal)"
+                        "description": "Pad rotation in degrees (0 = no rotation)"
                     },
                     "drill_diameter": {
                         "type": ["number", "null"],
@@ -86,6 +86,32 @@ EXTRACTION_SCHEMA = {
                     }
                 },
                 "required": ["designator", "x", "y", "width", "height", "shape", "pad_type", "confidence"]
+            }
+        },
+        "vias": {
+            "type": "array",
+            "description": "Thermal vias (small holes in/near the thermal pad for heat dissipation)",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "x": {
+                        "type": "number",
+                        "description": "X position of via center in mm"
+                    },
+                    "y": {
+                        "type": "number",
+                        "description": "Y position of via center in mm"
+                    },
+                    "drill_diameter": {
+                        "type": "number",
+                        "description": "Via drill hole diameter in mm (typically 0.2-0.4mm)"
+                    },
+                    "outer_diameter": {
+                        "type": "number",
+                        "description": "Via copper annular ring outer diameter in mm"
+                    }
+                },
+                "required": ["x", "y", "drill_diameter", "outer_diameter"]
             }
         },
         "outline": {
@@ -145,7 +171,7 @@ EXTRACTION_SCHEMA = {
             "description": "If a standard IPC package is detected (e.g., 'SOIC-8', 'QFN-48'), return it here"
         }
     },
-    "required": ["footprint_name", "units_detected", "pads", "outline", "pin1_location", "overall_confidence", "warnings"]
+    "required": ["footprint_name", "units_detected", "pads", "vias", "outline", "pin1_location", "overall_confidence", "warnings"]
 }
 
 # Main extraction prompt
@@ -190,8 +216,23 @@ Datasheets show TWO different types of measurements. Confusing them is a critica
 **Example:** If pitch is 1.27mm, pad width is likely ~0.5-0.8mm, NOT 1.27mm
 
 ### Pad Types
-- SMD pads: Surface mount, no drill hole
-- TH pads: Through-hole, have a drill diameter
+- **SMD pads**: Surface mount, no drill hole
+- **TH pads**: Through-hole, have a drill diameter
+- **Thermal/Exposed pads (EP)**: Large center pad for heat dissipation, often labeled "EP", "9", or shown as "Optional Center Pad"
+
+### CRITICAL: Thermal Pads and Thermal Vias
+Many packages (QFN, UDFN, QFP with EP) have a **thermal pad** in the center:
+- Look for "Optional Center Pad", "Exposed Pad", "EP", or a large rectangle in the center
+- Dimensions are often labeled X2/Y2 or similar in the table
+- This is a REAL PAD that MUST be included - designate it as "EP" or the next pin number
+- The thermal pad is typically much larger than signal pads (1-3mm vs 0.3-0.8mm)
+
+**Thermal vias** are small holes inside or near the thermal pad:
+- Look for small circles with X marks inside the thermal pad area
+- Labeled as "Thermal Via", "V" diameter, or "EV" pitch
+- Typically 0.2-0.4mm drill diameter
+- Used for heat transfer to inner/bottom layers
+- Include ALL thermal vias in the "vias" array
 
 ### Through-Hole Pads: Drill vs Pad Size
 For through-hole pads, there are TWO different diameters:
@@ -225,6 +266,28 @@ Include EVERY hole visible in the footprint drawing:
 - **Shield/alignment holes:** Medium unlabeled holes - use "SH1", "SH2"
 - **Unlabeled holes** are still part of the footprint - assign designators based on position
 - Count ALL circles/holes in the drawing, labeled or not
+
+### CRITICAL: Pad Orientation and Width vs Height
+**Width = X dimension (horizontal), Height = Y dimension (vertical)**
+
+For packages like QFN, UDFN, SOIC where pads are on the LEFT and RIGHT sides:
+- Pads on LEFT side (negative X): width is the dimension TOWARD center, height is the narrow dimension
+- Pads on RIGHT side (positive X): same orientation
+- If the pad extends horizontally (toward center), width > height
+- Example: A pad that is 0.85mm long extending toward center and 0.30mm wide → width=0.85, height=0.30
+
+For packages where pads are on TOP and BOTTOM:
+- Pads extend vertically toward center
+- Example: A pad 0.85mm tall extending toward center and 0.30mm wide → width=0.30, height=0.85
+
+**How to determine pad orientation from the drawing:**
+1. Look at the package body outline (usually a rectangle)
+2. Identify which sides the pads are on
+3. Pads always extend TOWARD the package center
+4. The "long" dimension of the pad points toward center
+5. Look for dimension labels like "X1" (pad width) and "Y1" (pad length) in the table
+
+**Common mistake:** Rotating the entire footprint 90°. Check which side has pin 1 and verify pad positions match the drawing layout.
 
 ### Pin 1 Identification
 Look for these indicators:
