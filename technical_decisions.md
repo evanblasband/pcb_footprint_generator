@@ -170,7 +170,7 @@ Use React with Tailwind CSS, bootstrapped with Vite.
 ## TD-004: Backend Framework - FastAPI
 
 **Date:** 2026-02-11
-**Status:** Decided
+**Status:** Implemented
 
 ### Context
 Need a Python backend for Claude API calls and file generation.
@@ -211,6 +211,14 @@ Use FastAPI.
 ### Consequences
 - Requires Python 3.8+ with type hints
 - May need async anthropic client for best performance
+
+### Implementation Notes (2026-02-11)
+FastAPI backend implemented in `main.py` with:
+- 8 REST endpoints (upload, extract, confirm, generate, detect-standard, job status, job delete)
+- In-memory job storage with TTL cleanup
+- CORS configured for React frontend (localhost:3000, localhost:5173)
+- Pydantic models for request/response validation
+- 18 unit tests covering all endpoints
 
 ---
 
@@ -265,7 +273,7 @@ Use Altium convention:
 ## TD-006: Job Storage - In-Memory (MVP)
 
 **Date:** 2026-02-11
-**Status:** Decided
+**Status:** Implemented
 
 ### Context
 Need to store extraction results between API calls (upload → extract → confirm → generate).
