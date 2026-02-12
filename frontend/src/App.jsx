@@ -168,7 +168,7 @@ function App() {
       document.body.removeChild(a)
       URL.revokeObjectURL(url)
 
-      setJobStatus('confirmed')
+      setJobStatus('downloaded')
     } catch (err) {
       setError(err.message)
       setJobStatus('confirmed')

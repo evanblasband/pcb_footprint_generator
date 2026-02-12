@@ -122,7 +122,7 @@ function ControlPanel({
         )}
 
         {/* Download button */}
-        {jobStatus === 'confirmed' && (
+        {(jobStatus === 'confirmed' || jobStatus === 'downloaded') && (
           <div className="space-y-1">
             <button
               onClick={onDownload}
@@ -233,6 +233,7 @@ function getStepStatus(step, jobStatus) {
       confirming: 'complete',
       confirmed: 'complete',
       generating: 'complete',
+      downloaded: 'complete',
     },
     extract: {
       idle: 'pending',
@@ -243,6 +244,7 @@ function getStepStatus(step, jobStatus) {
       confirming: 'complete',
       confirmed: 'complete',
       generating: 'complete',
+      downloaded: 'complete',
     },
     confirm: {
       idle: 'pending',
@@ -253,6 +255,7 @@ function getStepStatus(step, jobStatus) {
       confirming: 'active',
       confirmed: 'complete',
       generating: 'complete',
+      downloaded: 'complete',
     },
     download: {
       idle: 'pending',
@@ -263,6 +266,7 @@ function getStepStatus(step, jobStatus) {
       confirming: 'pending',
       confirmed: 'pending',
       generating: 'active',
+      downloaded: 'complete',
     },
   }
   return statusMap[step]?.[jobStatus] || 'pending'
