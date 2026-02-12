@@ -49,10 +49,10 @@ Use **DelphiScript (.pas)** files that users run inside Altium Designer.
 
 ---
 
-## TD-002: AI Model - Claude Haiku (Initial)
+## TD-002: AI Model - Claude Sonnet (Updated from Haiku)
 
 **Date:** 2026-02-11
-**Status:** Decided
+**Status:** Updated after testing
 
 ### Context
 Need to extract structured dimensions from datasheet images using AI vision.
@@ -67,31 +67,38 @@ Need to extract structured dimensions from datasheet images using AI vision.
 | GPT-4V | $10/1M | $30/1M | Excellent | Medium |
 | Gemini Pro Vision | $0.25/1M | $0.50/1M | Good | Fast |
 
-### Decision
-Start with Claude Haiku, architecture allows model swapping.
+### Original Decision
+Started with Claude Haiku for cost efficiency.
 
-### Rationale
-1. Cost target is $0.01-0.05 per extraction - Haiku meets this
-2. Datasheet images are typically well-structured engineering drawings
-3. Can upgrade to Sonnet/Opus if accuracy insufficient
-4. Model parameter is configurable in extraction.py for easy swapping
+### Updated Decision (After Testing)
+**Use Claude Sonnet as default.** Haiku consistently confused pad width with pad pitch/spacing.
 
-### Why Not Sonnet/Opus Initially
-- 12x-60x more expensive per extraction
-- Unknown if the accuracy improvement justifies cost for this use case
-- Better to start cheap and upgrade only if needed
-- User feedback will indicate if accuracy is insufficient
+### Test Results (SO-8EP image)
 
-### Why Not GPT-4V or Gemini
-- Anthropic API already integrated, consistent API surface
-- Claude has strong structured output capabilities
-- Avoid vendor lock-in to multiple AI providers in MVP
-- Can add as alternatives later if needed
+| Metric | Haiku | Sonnet |
+|--------|-------|--------|
+| Pad dimensions | ❌ Wrong (1.27mm pitch used as width) | ✅ Correct (0.802mm) |
+| Pad count | ✅ 9 | ✅ 9 |
+| Thermal pad | ✅ Found | ✅ Found |
+| Cost per extraction | $0.0024 | $0.0023 |
+
+### Rationale for Sonnet
+1. **Accuracy is critical** - wrong pad dimensions = unusable footprint
+2. **Cost difference is negligible** - ~$0.002 per extraction for either model
+3. Sonnet correctly distinguishes between:
+   - Pad dimensions (width/height of copper area)
+   - Pad pitch/spacing (distance between pad centers)
+4. Haiku repeatedly confused these despite explicit prompt instructions
+
+### Why Not Opus
+- 10x more expensive than Sonnet
+- Sonnet accuracy appears sufficient for this task
+- Can upgrade if complex edge cases require it
 
 ### Consequences
-- May need to iterate on prompts for accuracy
-- Complex table-variable correlations may need Sonnet
-- User can trade cost for accuracy if needed
+- Default model changed from Haiku to Sonnet in extraction.py
+- Cost per extraction still well under $0.01 target
+- Haiku still available via `--model haiku` flag for cost-sensitive users
 
 ---
 

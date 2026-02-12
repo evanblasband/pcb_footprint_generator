@@ -35,22 +35,27 @@
 | SO-8EP | ✅ Pass | Ground truth validation |
 | TEST-ALL-SHAPES | ✅ Pass | Round, rectangular, oval working |
 
-### Spike 2: Vision Model Extraction Test
+### Spike 2: Vision Model Extraction Test ✅ COMPLETE
 - [x] Create extraction.py with Claude API integration (23 tests passing)
 - [x] Create prompts.py with JSON schema extraction prompt (23 tests passing)
 - [x] Create run_extraction_test.py script for testing
-- [ ] **Test on example datasheet images** (requires API key)
-- [ ] Implement table-variable format correlation
-- [ ] Assess Haiku accuracy
+- [x] Test on example datasheet images (SO-8EP)
+- [x] Assess model accuracy - **Sonnet recommended over Haiku**
+- [ ] Implement table-variable format correlation (deferred - basic extraction working)
+
+#### Model Selection Results (2026-02-11)
+| Model | Pad Dimensions | Cost | Recommendation |
+|-------|---------------|------|----------------|
+| Haiku | ❌ Wrong (confused pitch with width) | $0.0024 | Not recommended |
+| Sonnet | ✅ Correct (0.802mm) | $0.0023 | **Default** |
 
 #### Running Extraction Test
 ```bash
 cd backend
 source venv/bin/activate
 export ANTHROPIC_API_KEY="your-key-here"
-python run_extraction_test.py  # Test all example images
-# Or test single image:
-python run_extraction_test.py ../example_datasheets/so-8ep_crop.png
+python run_extraction_test.py ../example_datasheets/so-8ep_crop.png  # Default: Sonnet
+python run_extraction_test.py ../example_datasheets/so-8ep_crop.png --model haiku  # Test Haiku
 ```
 
 ### Backend Core

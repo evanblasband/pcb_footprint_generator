@@ -44,8 +44,9 @@ from prompts import get_extraction_prompt, get_standard_package_prompt
 # Configuration
 # =============================================================================
 
-# Default model - Haiku for cost efficiency
-DEFAULT_MODEL = "claude-haiku-4-5-20251001"
+# Default model - Sonnet for accuracy (correctly distinguishes pad dimensions from pitch)
+# Haiku struggles with pad width vs spacing confusion
+DEFAULT_MODEL = "claude-sonnet-4-5-20250929"
 
 # Model options for upgrades
 MODELS = {

@@ -274,6 +274,14 @@ def run_extraction_test(image_path: Path, extractor: FootprintExtractor) -> dict
 
 def main():
     """Main test runner."""
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Test PCB footprint extraction")
+    parser.add_argument("image", nargs="?", help="Path to image file (optional, tests all if omitted)")
+    parser.add_argument("--model", "-m", choices=["haiku", "sonnet", "opus"], default="haiku",
+                        help="Model to use (default: haiku)")
+    args = parser.parse_args()
+
     print_separator("=")
     print("PCB FOOTPRINT EXTRACTION TEST - SPIKE 2")
     print_separator("=")
@@ -291,16 +299,16 @@ def main():
 
     # Create extractor
     try:
-        extractor = FootprintExtractor(api_key=api_key, model="haiku")
+        extractor = FootprintExtractor(api_key=api_key, model=args.model)
         print(f"✅ Extractor initialized with model: {extractor.model}")
     except Exception as e:
         print(f"❌ Failed to create extractor: {e}")
         sys.exit(1)
 
     # Determine which images to test
-    if len(sys.argv) > 1:
+    if args.image:
         # Test specific image
-        image_path = Path(sys.argv[1])
+        image_path = Path(args.image)
         if not image_path.exists():
             print(f"❌ Image not found: {image_path}")
             sys.exit(1)

@@ -167,20 +167,27 @@ Extract the pad geometry and positions from this footprint drawing. Output a JSO
 - If dimensions show total span, calculate individual pad positions
 - If a table maps variables (A, B, C) to values, apply those values to the drawing
 
-### Critical: Pad Dimensions vs Spacing
-Datasheets show TWO different types of measurements - do not confuse them:
+### Critical: Pad Dimensions vs Spacing (COMMON MISTAKE)
+Datasheets show TWO different types of measurements. Confusing them is a critical error:
 
-1. **Pad dimensions** (width and height): The physical size of each copper pad
-   - Look at the actual pad rectangles drawn in the image
-   - Usually the smaller dimensions in the table
-   - Describes the copper area where solder will be applied
+**Pad dimensions** (width and height): The physical size of each copper pad
+- These dimensions describe ONE pad's copper area
+- Look for dimension lines that span a SINGLE pad rectangle
+- Typically 0.3-0.8mm for small SOIC/QFN packages
 
-2. **Pad spacing/pitch**: The distance BETWEEN pad centers
-   - Usually shown as dimension lines between pads
-   - Describes the repeating pattern, not the pad itself
-   - Do NOT use spacing values for pad width/height
+**Pad spacing/pitch**: The distance BETWEEN pad centers
+- These describe the REPEATING PATTERN between pads
+- Look for dimension lines that go from one pad center to another
+- Common pitches: 0.5mm, 0.635mm, 1.0mm, 1.27mm
+- Do NOT use pitch/spacing for pad width/height!
 
-To determine pad width and height, examine the individual pad shapes in the drawing and find the corresponding dimension labels that point to the pad edges (not to adjacent pads).
+**How to distinguish them:**
+- If a dimension is labeled between TWO pads → it's spacing/pitch
+- If a dimension points to the edges of ONE pad → it's pad width or height
+- Pitch values (1.27mm, 0.5mm) are almost always LARGER than pad width
+- Pad width is typically 40-60% of the pitch value
+
+**Example:** If pitch is 1.27mm, pad width is likely ~0.5-0.8mm, NOT 1.27mm
 
 ### Pad Types
 - SMD pads: Surface mount, no drill hole
