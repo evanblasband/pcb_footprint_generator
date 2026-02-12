@@ -115,9 +115,9 @@ def mock_client():
 class TestConfiguration:
     """Tests for extractor configuration."""
 
-    def test_default_model_is_haiku(self):
-        """Test that default model is Haiku."""
-        assert "haiku" in DEFAULT_MODEL.lower()
+    def test_default_model_is_sonnet(self):
+        """Test that default model is Sonnet (chosen for accuracy over Haiku)."""
+        assert "sonnet" in DEFAULT_MODEL.lower()
 
     def test_models_dict_contains_expected_models(self):
         """Test that MODELS dict has expected entries."""
