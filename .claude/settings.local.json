@@ -37,7 +37,8 @@
       "Bash(npm run build:*)",
       "Bash(timeout 5 npm run dev:*)",
       "Bash(git checkout:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
     ]
   }
 }

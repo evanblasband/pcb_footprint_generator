@@ -19,6 +19,7 @@ function ControlPanel({
   onReset,
 }) {
   const [selectedModel, setSelectedModel] = useState('sonnet')
+  const [useStaged, setUseStaged] = useState(true)  // Default to staged extraction
 
   const isLoading = ['uploading', 'extracting', 'confirming', 'generating'].includes(jobStatus)
 
@@ -97,8 +98,21 @@ function ControlPanel({
                 <option value="opus">Opus (Complex TH)</option>
               </select>
             </div>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={useStaged}
+                onChange={(e) => setUseStaged(e.target.checked)}
+                className="w-4 h-4 text-accent bg-bg-tertiary border-text-secondary/30 rounded
+                  focus:ring-accent focus:ring-offset-bg-primary"
+              />
+              <span className="text-sm text-text-secondary">
+                Staged extraction
+                <span className="text-text-muted ml-1">(better accuracy)</span>
+              </span>
+            </label>
             <button
-              onClick={() => onExtract(selectedModel)}
+              onClick={() => onExtract(selectedModel, useStaged)}
               disabled={isLoading}
               className="w-full bg-accent text-text-dark font-semibold py-3 px-4 rounded-lg
                 hover:bg-accent-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"

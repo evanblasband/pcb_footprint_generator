@@ -38,6 +38,7 @@ from models import (
     ExtractionResult,
 )
 from prompts import get_extraction_prompt, get_standard_package_prompt
+from prompts_staged import get_stage1_prompt, get_stage2_prompt
 
 
 # =============================================================================
@@ -395,6 +396,145 @@ class FootprintExtractor:
             return StandardPackageResponse(
                 is_standard=False,
                 reason=f"Detection failed: {str(e)}"
+            )
+
+    def extract_staged_from_bytes_multi(
+        self,
+        images: list[tuple[bytes, str]]
+    ) -> ExtractionResponse:
+        """
+        Extract footprint using 2-stage pipeline for improved accuracy.
+
+        Stage 1 (Haiku): Parse dimension table and identify package type
+        Stage 2 (Sonnet): Extract geometry using parsed table context
+
+        This approach improves accuracy by:
+        - Separating table parsing from geometry extraction
+        - Preventing pad dimension vs pitch confusion
+        - Providing explicit dimension values to Stage 2
+
+        Args:
+            images: List of (image_bytes, media_type) tuples
+
+        Returns:
+            ExtractionResponse with extracted footprint or error
+        """
+        if not images:
+            return ExtractionResponse(
+                success=False,
+                error="At least one image is required"
+            )
+
+        # Validate and encode all images
+        content_parts = []
+        for i, (image_bytes, media_type) in enumerate(images):
+            if media_type not in SUPPORTED_MEDIA_TYPES:
+                return ExtractionResponse(
+                    success=False,
+                    error=f"Image {i+1}: Unsupported media type: {media_type}"
+                )
+
+            image_base64 = base64.b64encode(image_bytes).decode("utf-8")
+            content_parts.append({
+                "type": "image",
+                "source": {
+                    "type": "base64",
+                    "media_type": media_type,
+                    "data": image_base64,
+                },
+            })
+
+        total_input_tokens = 0
+        total_output_tokens = 0
+
+        try:
+            # =================================================================
+            # Stage 1: Scene Analysis + Table Parsing (Haiku)
+            # =================================================================
+            stage1_prompt = get_stage1_prompt()
+            stage1_content = content_parts.copy()
+            stage1_content.append({"type": "text", "text": stage1_prompt})
+
+            stage1_response = self.client.messages.create(
+                model=MODELS["haiku"],
+                max_tokens=2048,
+                messages=[{"role": "user", "content": stage1_content}],
+            )
+
+            total_input_tokens += stage1_response.usage.input_tokens
+            total_output_tokens += stage1_response.usage.output_tokens
+
+            stage1_text = stage1_response.content[0].text
+            stage1_result = self._parse_json_response(stage1_text)
+
+            if stage1_result is None:
+                return ExtractionResponse(
+                    success=False,
+                    error="Stage 1 failed: Could not parse table analysis",
+                    model_used="staged (haiku+sonnet)",
+                    input_tokens=total_input_tokens,
+                    output_tokens=total_output_tokens,
+                )
+
+            # =================================================================
+            # Stage 2: Geometry Extraction with Table Context (Sonnet)
+            # =================================================================
+            stage2_prompt = get_stage2_prompt(stage1_result)
+            stage2_content = content_parts.copy()
+            stage2_content.append({"type": "text", "text": stage2_prompt})
+
+            stage2_response = self.client.messages.create(
+                model=MODELS["sonnet"],
+                max_tokens=MAX_TOKENS,
+                messages=[{"role": "user", "content": stage2_content}],
+            )
+
+            total_input_tokens += stage2_response.usage.input_tokens
+            total_output_tokens += stage2_response.usage.output_tokens
+
+            stage2_text = stage2_response.content[0].text
+            raw_response = self._parse_json_response(stage2_text)
+
+            if raw_response is None:
+                return ExtractionResponse(
+                    success=False,
+                    error="Stage 2 failed: Could not parse geometry extraction",
+                    model_used="staged (haiku+sonnet)",
+                    input_tokens=total_input_tokens,
+                    output_tokens=total_output_tokens,
+                )
+
+            # Add stage1 metadata to raw response for debugging
+            raw_response["_stage1_analysis"] = stage1_result
+
+            # Convert to Footprint model
+            footprint, extraction_result = self._response_to_footprint(raw_response)
+
+            return ExtractionResponse(
+                success=True,
+                footprint=footprint,
+                extraction_result=extraction_result,
+                raw_response=raw_response,
+                model_used="staged (haiku+sonnet)",
+                input_tokens=total_input_tokens,
+                output_tokens=total_output_tokens,
+            )
+
+        except anthropic.APIError as e:
+            return ExtractionResponse(
+                success=False,
+                error=f"Claude API error: {str(e)}",
+                model_used="staged (haiku+sonnet)",
+                input_tokens=total_input_tokens,
+                output_tokens=total_output_tokens,
+            )
+        except Exception as e:
+            return ExtractionResponse(
+                success=False,
+                error=f"Staged extraction failed: {str(e)}",
+                model_used="staged (haiku+sonnet)",
+                input_tokens=total_input_tokens,
+                output_tokens=total_output_tokens,
             )
 
     # =========================================================================
