@@ -246,3 +246,57 @@ python run_extraction_test.py ../example_datasheets/so-8ep_crop.png --model haik
 3. **Script workflow** requires user to: Open project → Open library → Run script
 
 See `technical_decisions.md` TD-009 for full details.
+
+---
+
+## Extraction Improvement Initiative (Day 3+)
+
+### Phase 0: Architecture Exploration ✅ COMPLETE
+- [x] Document current failure modes
+- [x] Brainstorm alternative extraction architectures
+- [x] Create `documents/hybrid-extraction-plan.md` - 7 architecture options evaluated
+- [x] Create `documents/extraction-improvement-analysis.md` - expert analysis with recommendations
+- [x] Update `technical_decisions.md` with TD-015 decision record
+- [x] Select approach: Parse-Then-Extract Pipeline
+
+### Confirmed Failure Modes (All Observed)
+1. ✓ Pad vs Pitch confusion - model uses spacing values for pad dimensions
+2. ✓ Table correlation errors - dimension variables not correctly mapped
+3. ✓ Missing elements - thermal pads, vias not detected
+4. ✓ Position errors - pad count correct but coordinates wrong
+
+### Phase 1: Parse-Then-Extract Pipeline (In Progress)
+- [ ] Create `backend/prompts_staged.py` - Stage 1 + Stage 2 prompts
+- [ ] Create `backend/extraction_staged.py` - Pipeline orchestration
+- [ ] Test Stage 1 (table parsing) on ATECC608A
+- [ ] Test Stage 2 (geometry extraction) with table context
+- [ ] Run full test suite, measure improvement vs baseline
+- [ ] Document metrics in this file
+
+### Phase 2: Verification Pass
+- [ ] Create `backend/verification.py` - Self-verification pass
+- [ ] Test verification prompt on known failure cases
+- [ ] Measure error correction rate
+- [ ] Target: Catch 50%+ of pad-vs-pitch confusion errors
+
+### Phase 3: User Hints (if needed)
+- [ ] Create `UserHint` model and detection logic
+- [ ] Add Pin 1 click prompt when confidence < 0.7
+- [ ] Add pitch confirmation dialog when multiple values detected
+- [ ] Frontend: `ConfidenceIndicator.jsx` component
+- [ ] Frontend: `PitchConfirmDialog.jsx` component
+
+### Success Metrics
+| Metric | Baseline | Target |
+|--------|----------|--------|
+| ATECC608A (SMD, thermal, vias) | TBD | >85% |
+| RJ45 (TH, mixed pad sizes) | 18/22 pads | >90% |
+| Table-variable format correlation | Inconsistent | >85% |
+| Cost per extraction | $0.02 | <$0.05 |
+
+### Documents Reference
+| Document | Purpose |
+|----------|---------|
+| `documents/hybrid-extraction-plan.md` | Brainstorm - 7 architecture options with pros/cons |
+| `documents/extraction-improvement-analysis.md` | Expert analysis - recommended approach, implementation details |
+| `technical_decisions.md` TD-015 | Decision record - rationale for selected approach |

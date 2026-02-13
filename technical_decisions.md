@@ -620,8 +620,95 @@ Add Mermaid diagram rendering to the MarkdownViewer component.
 
 ---
 
+## TD-015: Hybrid Extraction Architecture Exploration
+
+**Date:** 2026-02-13
+**Status:** Planning Complete, Implementation Pending
+
+### Context
+Single-shot AI extraction with prompt engineering has reached its limits. Testing revealed all four failure modes are occurring:
+1. Pad vs pitch confusion (model uses spacing value for pad dimensions)
+2. Table correlation errors (dimension variables not correctly mapped)
+3. Missing elements (thermal pads, vias not detected)
+4. Position errors (pad count correct but coordinates wrong)
+
+### Documents Created
+
+| Document | Location | Purpose |
+|----------|----------|---------|
+| `hybrid-extraction-plan.md` | `documents/` | **Brainstorm document** - Lists 7 alternative extraction architectures with pros/cons. Options include: multi-stage pipeline, CV preprocessing, dimension line detection, template-based, user-guided, shape-first, and ensemble voting. |
+| `extraction-improvement-analysis.md` | `documents/` | **Expert analysis** - Recommends specific approaches, provides feasibility rankings, implementation details, cost analysis, and testing protocol. |
+
+### Architecture Options Considered
+
+| Option | Feasibility | Impact | Recommendation |
+|--------|-------------|--------|----------------|
+| Multi-Stage AI Pipeline | 8/10 | 8/10 | **DO FIRST** |
+| CV Pre-processing | 4/10 | 3/10 | Skip - over-engineered |
+| Dimension Line Detection | 3/10 | 4/10 | Skip - too fragile |
+| Template-Based + Fallback | 7/10 | 5/10 | Defer to post-MVP |
+| User-Guided Hints | 9/10 | 9/10 | **DO SECOND** |
+| Verification Pass | 9/10 | 7/10 | **DO THIRD** |
+| Ensemble Voting | 5/10 | 4/10 | Skip - 3x cost |
+
+### Selected Approach: Parse-Then-Extract Pipeline
+
+```
+Stage 1: Scene Analysis + Table Parsing (Haiku - cheap)
+├── Identify drawing type and format
+├── Parse dimension table: {X1: 0.30, X2: 1.60, Y1: 0.85, ...}
+├── Identify package style and pad arrangement
+└── Output: metadata + parsed_table
+
+Stage 2: Geometry Extraction (Sonnet - accurate)
+├── Input: image + parsed_table from Stage 1
+├── Focus on identifying shapes and assigning dimensions
+└── Output: final footprint JSON
+
+Stage 3 (optional): Verification Pass (Haiku)
+├── Self-check extracted values against image
+└── Flag obvious errors (pad_width ≈ pitch)
+```
+
+### Why This Approach Addresses All Failure Modes
+
+1. **Pad vs Pitch confusion** → Verification pass catches this pattern
+2. **Table correlation errors** → Stage 1 explicitly parses table before Stage 2 applies values
+3. **Missing elements** → Stage 1 counts elements, verification confirms all captured
+4. **Position errors** → Verification checks symmetry and coordinate consistency
+
+### Why NOT CV Pre-processing
+- Claude's vision already handles shape detection well
+- Datasheet styles vary too much for OpenCV parameters
+- OCR (Tesseract) struggles with technical symbols (⌀, ±)
+- Adds system dependencies complicating deployment
+- Root cause is interpretation, not detection
+
+### Implementation Plan
+1. Day 1: Implement Stage 1 (table parsing) prompt
+2. Day 2: Implement Stage 2 (geometry extraction) with table context
+3. Day 3: Test suite comparison
+4. Day 4: Add verification pass if needed
+5. Day 5: Add user hints for edge cases
+
+### Cost Analysis
+| Approach | Cost/Extraction | Notes |
+|----------|-----------------|-------|
+| Current (Sonnet single-shot) | ~$0.02 | Baseline |
+| Parse-Then-Extract | ~$0.025 | Stage 1: Haiku, Stage 2: Sonnet |
+| + Verification | ~$0.03 | Haiku verification pass |
+
+All within $0.05 budget target.
+
+### Consequences
+- New files: `prompts_staged.py`, `extraction_staged.py`, `verification.py`
+- Model selection becomes pipeline selection
+- Frontend may need confidence-based hint UI
+
+---
+
 ## Future Decisions (To Be Made)
 
-- **TD-015:** Production deployment strategy (Railway configuration)
-- **TD-016:** Rate limiting and abuse prevention
-- **TD-017:** Error recovery for partial extractions
+- **TD-016:** Production deployment strategy (Railway configuration)
+- **TD-017:** Rate limiting and abuse prevention
+- **TD-018:** Error recovery for partial extractions
