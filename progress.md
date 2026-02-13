@@ -265,19 +265,30 @@ See `technical_decisions.md` TD-009 for full details.
 3. ✓ Missing elements - thermal pads, vias not detected
 4. ✓ Position errors - pad count correct but coordinates wrong
 
-### Phase 1: Parse-Then-Extract Pipeline (In Progress)
-- [ ] Create `backend/prompts_staged.py` - Stage 1 + Stage 2 prompts
-- [ ] Create `backend/extraction_staged.py` - Pipeline orchestration
-- [ ] Test Stage 1 (table parsing) on ATECC608A
-- [ ] Test Stage 2 (geometry extraction) with table context
-- [ ] Run full test suite, measure improvement vs baseline
-- [ ] Document metrics in this file
+### Phase 1: Parse-Then-Extract Pipeline ❌ ABANDONED
+- [x] Create `backend/prompts_staged.py` - Stage 1 + Stage 2 prompts
+- [x] Test Stage 1 (table parsing) on ATECC608A
+- [x] Test Stage 2 (geometry extraction) with table context
+- ❌ **Result: Performed worse than single-shot extraction**
+- ❌ Pads were rotated 90° off for UDFN package
+- ❌ Required package-specific prompt patches that don't scale
+- **Decision:** Abandoned this approach per user feedback - "doesn't scale to other formats"
 
-### Phase 2: Verification Pass
-- [ ] Create `backend/verification.py` - Self-verification pass
-- [ ] Test verification prompt on known failure cases
-- [ ] Measure error correction rate
-- [ ] Target: Catch 50%+ of pad-vs-pitch confusion errors
+### Phase 2: Verification Pass ⚠️ EXPERIMENTAL (disabled by default)
+- [x] Create `backend/verification.py` - Self-verification pass
+- [x] Create `backend/run_verification_test.py` - Test script
+- [x] Test verification prompt on known failure cases
+- [x] Integrate verification into `/api/extract` endpoint (`verify=False` default)
+- [x] Add UI toggle in frontend (verification checkbox disabled by default)
+
+#### Verification Results
+| Datasheet | Single-shot | Verification | Result |
+|-----------|-------------|--------------|--------|
+| ATECC608A | `0.850x0.300mm` ✅ | N/A (not triggered) | Single-shot already correct |
+| SO-8EP | `0.802x1.270mm` ❌ | Corrected to `1.270x0.802mm` | Fixed by verification |
+| RJ45 | `0.635x1.270mm` ✅ | N/A (not triggered) | Single-shot already correct |
+
+**Conclusion:** Single-shot extraction with good prompts already performs well. Verification adds cost/complexity without clear improvement. Kept as experimental option for future investigation.
 
 ### Phase 3: User Hints (if needed)
 - [ ] Create `UserHint` model and detection logic

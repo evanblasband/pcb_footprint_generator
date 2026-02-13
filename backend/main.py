@@ -24,9 +24,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel, Field
 
+import anthropic
+
 from extraction import FootprintExtractor, ExtractionResponse, estimate_cost
 from generator_delphiscript import DelphiScriptGenerator
 from models import Footprint, Pad, PadShape, PadType, Outline, ExtractionResult
+from verification import detect_suspicious_values, verify_extraction, apply_corrections
 
 
 # =============================================================================
@@ -307,7 +310,7 @@ async def add_images_to_job(job_id: str, files: list[UploadFile] = File(...)):
 
 
 @app.get("/api/extract/{job_id}", response_model=ExtractResponse)
-async def extract_dimensions(job_id: str, model: str = "sonnet", staged: bool = False):
+async def extract_dimensions(job_id: str, model: str = "sonnet", staged: bool = False, verify: bool = False):
     """
     Extract footprint dimensions from the uploaded images.
 
@@ -321,6 +324,8 @@ async def extract_dimensions(job_id: str, model: str = "sonnet", staged: bool = 
         staged: Use 2-stage extraction pipeline for improved accuracy.
                 Stage 1 parses dimension table, Stage 2 extracts geometry.
                 Better at distinguishing pad dimensions from pitch values.
+        verify: Run verification pass to catch common errors like pad vs pitch
+                confusion. Uses Haiku model for cost efficiency. Default: True
     """
     job = get_job(job_id)
 
@@ -345,6 +350,10 @@ async def extract_dimensions(job_id: str, model: str = "sonnet", staged: bool = 
         else:
             result = extractor.extract_from_bytes_multi(images)
 
+        # Run verification pass if enabled and extraction succeeded
+        if verify and result.success and result.extraction_result:
+            result = _run_verification(result, job.images[0].image_bytes, job.images[0].content_type)
+
         # Store result
         job.extraction_response = result
         job.extracted = True
@@ -357,6 +366,87 @@ async def extract_dimensions(job_id: str, model: str = "sonnet", staged: bool = 
             success=False,
             error=str(e),
         )
+
+
+def _run_verification(result: ExtractionResponse, image_bytes: bytes, media_type: str) -> ExtractionResponse:
+    """
+    Run verification pass on extraction results to catch common errors.
+
+    Checks for suspicious values like pad dimensions close to pitch,
+    and asks the model to verify and correct if needed.
+
+    Args:
+        result: Original extraction response
+        image_bytes: Image bytes for verification
+        media_type: Image MIME type
+
+    Returns:
+        Updated ExtractionResponse with any corrections applied
+    """
+    extraction = result.extraction_result
+
+    # Check if verification is needed
+    suspicious = detect_suspicious_values(extraction)
+    if not suspicious["needs_verification"]:
+        return result
+
+    # Run verification
+    import os
+    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    if not api_key:
+        # Can't verify without API key, return original result
+        return result
+
+    client = anthropic.Anthropic(api_key=api_key)
+    verification = verify_extraction(
+        extraction,
+        image_bytes,
+        media_type,
+        client,
+        model="claude-haiku-4-5-20251001"  # Use Haiku for cost efficiency
+    )
+
+    if verification.error:
+        # Verification failed, return original result with warning
+        if extraction.warnings is None:
+            extraction.warnings = []
+        extraction.warnings.append(f"Verification skipped: {verification.error}")
+        return result
+
+    # Apply any corrections
+    if verification.pad_dimensions_corrected or not verification.verified:
+        corrected_extraction = apply_corrections(extraction, verification)
+
+        # Update tokens to include verification cost
+        total_input = (result.input_tokens or 0) + verification.input_tokens
+        total_output = (result.output_tokens or 0) + verification.output_tokens
+
+        # Rebuild footprint from corrected extraction
+        # The corrected_extraction already has properly typed Pad, Via, and Outline objects
+        corrected_footprint = Footprint(
+            name=result.footprint.name if result.footprint else "Verified_Footprint",
+            description=result.footprint.description if result.footprint else "",
+            pads=corrected_extraction.pads,  # Already proper Pad objects
+            vias=corrected_extraction.vias,  # Already proper Via objects
+            outline=corrected_extraction.outline,  # Already Outline object or None
+        )
+
+        return ExtractionResponse(
+            success=True,
+            extraction_result=corrected_extraction,
+            footprint=corrected_footprint,
+            model_used=result.model_used,
+            input_tokens=total_input,
+            output_tokens=total_output,
+        )
+
+    # Update tokens even if no corrections
+    total_input = (result.input_tokens or 0) + verification.input_tokens
+    total_output = (result.output_tokens or 0) + verification.output_tokens
+    result.input_tokens = total_input
+    result.output_tokens = total_output
+
+    return result
 
 
 def _build_extract_response(job_id: str, result: ExtractionResponse) -> ExtractResponse:

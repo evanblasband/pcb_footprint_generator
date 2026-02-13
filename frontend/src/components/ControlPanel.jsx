@@ -19,7 +19,8 @@ function ControlPanel({
   onReset,
 }) {
   const [selectedModel, setSelectedModel] = useState('sonnet')
-  const [useStaged, setUseStaged] = useState(true)  // Default to staged extraction
+  const [useStaged, setUseStaged] = useState(false)  // Staged extraction (experimental)
+  const [useVerify, setUseVerify] = useState(false)  // Verification pass (experimental)
 
   const isLoading = ['uploading', 'extracting', 'confirming', 'generating'].includes(jobStatus)
 
@@ -101,6 +102,19 @@ function ControlPanel({
             <label className="flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
+                checked={useVerify}
+                onChange={(e) => setUseVerify(e.target.checked)}
+                className="w-4 h-4 text-accent bg-bg-tertiary border-text-secondary/30 rounded
+                  focus:ring-accent focus:ring-offset-bg-primary"
+              />
+              <span className="text-sm text-text-secondary">
+                Verification pass
+                <span className="text-text-muted ml-1">(experimental)</span>
+              </span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
                 checked={useStaged}
                 onChange={(e) => setUseStaged(e.target.checked)}
                 className="w-4 h-4 text-accent bg-bg-tertiary border-text-secondary/30 rounded
@@ -108,11 +122,11 @@ function ControlPanel({
               />
               <span className="text-sm text-text-secondary">
                 Staged extraction
-                <span className="text-text-muted ml-1">(better accuracy)</span>
+                <span className="text-text-muted ml-1">(experimental)</span>
               </span>
             </label>
             <button
-              onClick={() => onExtract(selectedModel, useStaged)}
+              onClick={() => onExtract(selectedModel, useStaged, useVerify)}
               disabled={isLoading}
               className="w-full bg-accent text-text-dark font-semibold py-3 px-4 rounded-lg
                 hover:bg-accent-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"

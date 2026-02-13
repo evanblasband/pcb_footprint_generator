@@ -623,7 +623,7 @@ Add Mermaid diagram rendering to the MarkdownViewer component.
 ## TD-015: Hybrid Extraction Architecture Exploration
 
 **Date:** 2026-02-13
-**Status:** Planning Complete, Implementation Pending
+**Status:** Planning Complete, Staged Approach Abandoned → Verification Approach Implemented
 
 ### Context
 Single-shot AI extraction with prompt engineering has reached its limits. Testing revealed all four failure modes are occurring:
@@ -707,8 +707,70 @@ All within $0.05 budget target.
 
 ---
 
+## TD-016: Verification Pass for Extraction Accuracy
+
+**Date:** 2026-02-13
+**Status:** Implemented
+
+### Context
+After implementing the Parse-Then-Extract staged pipeline (TD-015), testing showed it performed **worse** than single-shot extraction for the ATECC608A datasheet - pad dimensions were rotated 90° off. The staged approach required package-specific prompt patches that don't scale.
+
+### Alternatives Considered
+
+| Option | Result | Issue |
+|--------|--------|-------|
+| Parse-Then-Extract Pipeline | ❌ Abandoned | Pads rotated 90° off, requires package-specific patches |
+| **Verification Pass** | ✅ Implemented | Catches errors without modifying extraction logic |
+
+### Decision
+Implement a **verification pass** that runs after single-shot extraction to catch common errors.
+
+### How It Works
+1. Run single-shot extraction (unchanged)
+2. Analyze result for suspicious values:
+   - Pad dimension ≈ calculated pitch (common confusion)
+   - 8+ signal pads but no thermal pad detected
+3. If suspicious, send to Haiku for verification with visual analysis
+4. Apply corrections if model identifies errors
+
+### Key Implementation Details
+- `verification.py` contains `detect_suspicious_values()`, `verify_extraction()`, `apply_corrections()`
+- Verification focuses on **visual orientation** not label semantics
+- Only runs when suspicious values detected (efficient)
+- Uses Haiku (~$0.003) for verification (cost-efficient)
+
+### Test Results
+
+| Datasheet | Single-shot | Verification Action | Final Result |
+|-----------|-------------|---------------------|--------------|
+| ATECC608A | `0.850x0.300mm` ✅ | No corrections needed | Verified correct |
+| SO-8EP | `0.802x1.270mm` ❌ | Corrected to `1.270x0.802mm` | Fixed |
+| RJ45 | Correct | No suspicious values | Skipped |
+
+### Why This Works Better Than Staged
+1. **No package-specific logic** - verification uses visual analysis
+2. **Scalable** - same prompt works for any package type
+3. **Targeted** - only runs when needed (saves cost)
+4. **Non-destructive** - if verification fails, original extraction preserved
+
+### Cost Impact
+| Scenario | Cost |
+|----------|------|
+| Sonnet extraction (baseline) | ~$0.025 |
+| + Verification (when suspicious) | ~$0.003 |
+| Total | ~$0.028 |
+
+### Files Created/Modified
+- `backend/verification.py` - Verification logic
+- `backend/run_verification_test.py` - Test script
+- `backend/main.py` - Added `verify=True` parameter to `/api/extract`
+- `frontend/src/App.jsx` - Added verify parameter
+- `frontend/src/components/ControlPanel.jsx` - Added UI toggle
+
+---
+
 ## Future Decisions (To Be Made)
 
-- **TD-016:** Production deployment strategy (Railway configuration)
-- **TD-017:** Rate limiting and abuse prevention
-- **TD-018:** Error recovery for partial extractions
+- **TD-017:** Production deployment strategy (Railway configuration)
+- **TD-018:** Rate limiting and abuse prevention
+- **TD-019:** Error recovery for partial extractions
