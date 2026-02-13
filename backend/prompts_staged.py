@@ -250,6 +250,23 @@ You MUST use the parsed dimension values from Stage 1. Do NOT re-read values fro
 For this {package_type} package with {pad_arrangement} arrangement:
 {dimension_usage_guide}
 
+## CRITICAL: Pad Orientation for UDFN/QFN/SOIC (Pads on Left/Right Sides)
+
+For packages with pads on the LEFT and RIGHT sides (not top/bottom):
+- Pads extend HORIZONTALLY toward the component center
+- The "pad length" dimension (Y1, L) is the HORIZONTAL extent = OUTPUT **WIDTH**
+- The "pad width" dimension (X1, b) is the VERTICAL extent = OUTPUT **HEIGHT**
+
+**Example for UDFN-8:**
+- Datasheet says: X1 = 0.30mm (pad width), Y1 = 0.85mm (pad length)
+- For pads on left/right sides, output should be:
+  - width = 0.85mm (the longer dimension, extending toward center)
+  - height = 0.30mm (the shorter dimension)
+
+**This is the OPPOSITE of what the variable names suggest!**
+- "Pad length" (Y1) → output width (because pads extend horizontally)
+- "Pad width" (X1) → output height
+
 ## Example Pad Position Calculation for UDFN/QFN
 
 If pitch (E) = 0.5mm and there are 4 pads per side:
@@ -309,12 +326,30 @@ def get_stage2_prompt(stage1_result: dict) -> str:
     thermal_width_label = semantics.get("thermal_width_label", "X2")
     thermal_height_label = semantics.get("thermal_height_label", "Y2")
 
-    usage_guide = f"""
-**For signal pads:**
-- Pad width = {pad_width_label} = {dim_table.get(pad_width_label, '?')}mm
-- Pad height = {pad_height_label} = {dim_table.get(pad_height_label, '?')}mm
+    # For peripheral packages (UDFN, QFN, SOIC) with pads on left/right sides,
+    # the "pad length" extends toward center (horizontal) and becomes OUTPUT WIDTH
+    pad_arrangement = stage1_result.get("pad_arrangement", "").lower()
+    is_peripheral = pad_arrangement in ["peripheral", "dual_row"]
+
+    pad_width_val = dim_table.get(pad_width_label, '?')
+    pad_height_val = dim_table.get(pad_height_label, '?')
+
+    if is_peripheral:
+        # For left/right pads: length (Y1) -> width, width (X1) -> height
+        usage_guide = f"""
+**For signal pads on LEFT and RIGHT sides:**
+IMPORTANT: Pads extend horizontally toward center, so dimensions are SWAPPED:
+- OUTPUT width = {pad_height_label} = {pad_height_val}mm (the longer "length" dimension)
+- OUTPUT height = {pad_width_label} = {pad_width_val}mm (the shorter "width" dimension)
 - Pitch (spacing) = {pitch_label} = {dim_table.get(pitch_label, '?')}mm
-- Use pitch to calculate Y positions of pads on left/right sides
+- Use pitch to calculate Y positions of pads
+"""
+    else:
+        usage_guide = f"""
+**For signal pads:**
+- Pad width = {pad_width_label} = {pad_width_val}mm
+- Pad height = {pad_height_label} = {pad_height_val}mm
+- Pitch (spacing) = {pitch_label} = {dim_table.get(pitch_label, '?')}mm
 """
 
     if has_thermal:
