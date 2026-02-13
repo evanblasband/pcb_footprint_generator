@@ -174,12 +174,61 @@ EXTRACTION_SCHEMA = {
     "required": ["footprint_name", "units_detected", "pads", "vias", "outline", "pin1_location", "overall_confidence", "warnings"]
 }
 
+# Few-shot examples (optional, can improve accuracy for some datasheets)
+FEW_SHOT_EXAMPLES = """
+## Example: UDFN-8 Package (for reference)
+
+For a UDFN-8 with pads on LEFT and RIGHT sides, pitch=0.5mm, pad length=0.85mm, pad width=0.30mm:
+
+```json
+{{
+  "footprint_name": "UDFN-8_2x3mm",
+  "pads": [
+    {{"designator": "1", "x": -1.45, "y": -0.75, "width": 0.85, "height": 0.30, "shape": "rectangular", "pad_type": "smd", "confidence": 0.95}},
+    {{"designator": "2", "x": -1.45, "y": -0.25, "width": 0.85, "height": 0.30, "shape": "rectangular", "pad_type": "smd", "confidence": 0.95}},
+    {{"designator": "3", "x": -1.45, "y": 0.25, "width": 0.85, "height": 0.30, "shape": "rectangular", "pad_type": "smd", "confidence": 0.95}},
+    {{"designator": "4", "x": -1.45, "y": 0.75, "width": 0.85, "height": 0.30, "shape": "rectangular", "pad_type": "smd", "confidence": 0.95}},
+    {{"designator": "5", "x": 1.45, "y": 0.75, "width": 0.85, "height": 0.30, "shape": "rectangular", "pad_type": "smd", "confidence": 0.95}},
+    {{"designator": "6", "x": 1.45, "y": 0.25, "width": 0.85, "height": 0.30, "shape": "rectangular", "pad_type": "smd", "confidence": 0.95}},
+    {{"designator": "7", "x": 1.45, "y": -0.25, "width": 0.85, "height": 0.30, "shape": "rectangular", "pad_type": "smd", "confidence": 0.95}},
+    {{"designator": "8", "x": 1.45, "y": -0.75, "width": 0.85, "height": 0.30, "shape": "rectangular", "pad_type": "smd", "confidence": 0.95}},
+    {{"designator": "EP", "x": 0, "y": 0, "width": 1.60, "height": 1.40, "shape": "rectangular", "pad_type": "smd", "confidence": 0.90}}
+  ]
+}}
+```
+
+**Key points from this example:**
+- Pads on left/right extend HORIZONTALLY toward center → width (0.85) > height (0.30)
+- Pitch is 0.5mm but pad width is 0.85mm and height is 0.30mm - NEITHER equals pitch
+- Y positions calculated from pitch: ±0.75, ±0.25 (multiples of 0.5mm / 2)
+
+## Example: Through-Hole Connector (for reference)
+
+For a TH connector with ⌀0.9mm drill holes and 1.27mm pitch:
+
+```json
+{{
+  "pads": [
+    {{"designator": "1", "x": -3.81, "y": 4.45, "width": 1.5, "height": 1.5, "shape": "round", "pad_type": "th", "drill_diameter": 0.9, "confidence": 0.90}},
+    {{"designator": "2", "x": -2.54, "y": 6.98, "width": 1.5, "height": 1.5, "shape": "round", "pad_type": "th", "drill_diameter": 0.9, "confidence": 0.90}},
+    {{"designator": "MH1", "x": -5.71, "y": 0.0, "width": 3.5, "height": 3.5, "shape": "round", "pad_type": "th", "drill_diameter": 3.2, "confidence": 0.85}}
+  ]
+}}
+```
+
+**Key points for TH pads:**
+- Look for ⌀ symbol indicating drill diameter (e.g., ⌀0.9mm)
+- Pad diameter (width/height) is LARGER than drill (typically drill + 0.5-0.6mm)
+- Round TH pads have width = height
+- Mounting holes (MH) have larger drill diameters (3.0mm+)
+"""
+
 # Main extraction prompt
 EXTRACTION_PROMPT = """You are an expert PCB footprint extraction system. Analyze this datasheet image showing a component's recommended land pattern (PCB footprint) and extract all dimensional information.
 
 ## Your Task
 Extract the pad geometry and positions from this footprint drawing. Output a JSON object following the schema below.
-
+{examples_placeholder}
 ## Important Guidelines
 
 ### Coordinate System
@@ -318,16 +367,22 @@ Look for these indicators:
 
 Analyze the image and extract the footprint data:"""
 
-def get_extraction_prompt() -> str:
+def get_extraction_prompt(include_examples: bool = False) -> str:
     """
     Get the full extraction prompt with schema embedded.
+
+    Args:
+        include_examples: If True, include few-shot examples in the prompt.
+                         This can improve accuracy for some datasheets but
+                         increases token usage.
 
     Returns:
         The complete prompt string ready to send to Claude API.
     """
     import json
     schema_str = json.dumps(EXTRACTION_SCHEMA, indent=2)
-    return EXTRACTION_PROMPT.format(schema=schema_str)
+    examples = FEW_SHOT_EXAMPLES if include_examples else ""
+    return EXTRACTION_PROMPT.format(schema=schema_str, examples_placeholder=examples)
 
 
 # Prompt for standard package detection (lighter weight, can run first)

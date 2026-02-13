@@ -85,14 +85,14 @@ function App() {
   /**
    * Trigger extraction
    */
-  const handleExtract = useCallback(async (model = 'sonnet', staged = false, verify = true) => {
+  const handleExtract = useCallback(async (model = 'sonnet', staged = false, verify = false, examples = false) => {
     if (!jobId) return
 
     setError(null)
     setJobStatus('extracting')
 
     try {
-      const response = await fetch(`/api/extract/${jobId}?model=${model}&staged=${staged}&verify=${verify}`)
+      const response = await fetch(`/api/extract/${jobId}?model=${model}&staged=${staged}&verify=${verify}&examples=${examples}`)
 
       if (!response.ok) {
         const data = await response.json()

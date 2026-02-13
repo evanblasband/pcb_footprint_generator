@@ -129,13 +129,14 @@ class FootprintExtractor:
         client: Anthropic API client
     """
 
-    def __init__(self, model: str = None, api_key: str = None):
+    def __init__(self, model: str = None, api_key: str = None, include_examples: bool = False):
         """
         Initialize the extractor.
 
         Args:
             model: Model name or alias ('haiku', 'sonnet', 'opus')
             api_key: Anthropic API key (defaults to ANTHROPIC_API_KEY env var)
+            include_examples: Include few-shot examples in prompt (can improve accuracy)
         """
         # Resolve model name
         if model is None:
@@ -145,6 +146,8 @@ class FootprintExtractor:
             self.model = MODELS[model]
         else:
             self.model = model
+
+        self.include_examples = include_examples
 
         # Initialize client
         if api_key is None:
@@ -262,7 +265,7 @@ class FootprintExtractor:
             })
 
         # Get extraction prompt with multi-image context
-        prompt = get_extraction_prompt()
+        prompt = get_extraction_prompt(include_examples=self.include_examples)
         if len(images) > 1:
             prompt = f"I'm providing {len(images)} images from a component datasheet. Use ALL images to extract the most accurate footprint dimensions. Cross-reference information between images to verify values and resolve ambiguities.\n\n" + prompt
 

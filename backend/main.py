@@ -310,7 +310,7 @@ async def add_images_to_job(job_id: str, files: list[UploadFile] = File(...)):
 
 
 @app.get("/api/extract/{job_id}", response_model=ExtractResponse)
-async def extract_dimensions(job_id: str, model: str = "sonnet", staged: bool = False, verify: bool = False):
+async def extract_dimensions(job_id: str, model: str = "sonnet", staged: bool = False, verify: bool = False, examples: bool = False):
     """
     Extract footprint dimensions from the uploaded images.
 
@@ -325,7 +325,9 @@ async def extract_dimensions(job_id: str, model: str = "sonnet", staged: bool = 
                 Stage 1 parses dimension table, Stage 2 extracts geometry.
                 Better at distinguishing pad dimensions from pitch values.
         verify: Run verification pass to catch common errors like pad vs pitch
-                confusion. Uses Haiku model for cost efficiency. Default: True
+                confusion. Uses Haiku model for cost efficiency. Default: False
+        examples: Include few-shot examples in prompt. Can improve accuracy
+                  for pad orientation but increases token usage. Default: False
     """
     job = get_job(job_id)
 
@@ -339,7 +341,7 @@ async def extract_dimensions(job_id: str, model: str = "sonnet", staged: bool = 
 
     # Create extractor and run extraction
     try:
-        extractor = FootprintExtractor(model=model)
+        extractor = FootprintExtractor(model=model, include_examples=examples)
 
         # Prepare images list for extraction
         images = [(img.image_bytes, img.content_type) for img in job.images]

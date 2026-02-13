@@ -290,6 +290,19 @@ See `technical_decisions.md` TD-009 for full details.
 
 **Conclusion:** Single-shot extraction with good prompts already performs well. Verification adds cost/complexity without clear improvement. Kept as experimental option for future investigation.
 
+### Phase 3: Few-Shot Prompt Examples ✅ SUCCESS
+- [x] Added UDFN-8 SMD example showing correct width > height for side pads
+- [x] Added TH connector example showing drill holes and pad types
+- [x] Tested on ATECC608A, SO-8EP, and RJ45 - all correct
+
+**Key improvement:** The few-shot examples fixed the SO-8EP width/height swap without breaking other extractions.
+
+| Datasheet | Before | After |
+|-----------|--------|-------|
+| ATECC608A | ✓ 0.85x0.30mm | ✓ 0.85x0.30mm |
+| SO-8EP | ✗ 0.80x1.27mm (swapped) | ✓ 1.27x0.80mm |
+| RJ45 | ⚠ SMD (wrong type) | ✓ TH with drill |
+
 ### Phase 3: User Hints (if needed)
 - [ ] Create `UserHint` model and detection logic
 - [ ] Add Pin 1 click prompt when confidence < 0.7
