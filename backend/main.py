@@ -271,8 +271,8 @@ class StandardPackageResponse(BaseModel):
 # API Endpoints
 # =============================================================================
 
-@app.get("/")
-async def root():
+@app.get("/api/health")
+async def health_check():
     """Health check endpoint."""
     return {
         "status": "ok",
