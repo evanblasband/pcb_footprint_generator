@@ -850,7 +850,7 @@ async def get_documentation(doc_name: str):
 # In production, serve the built frontend from the static directory
 STATIC_DIR = Path(__file__).parent / "static"
 
-if STATIC_DIR.exists() and IS_PRODUCTION:
+if STATIC_DIR.exists():
     # Mount static assets (JS, CSS, images)
     app.mount("/assets", StaticFiles(directory=STATIC_DIR / "assets"), name="assets")
 
