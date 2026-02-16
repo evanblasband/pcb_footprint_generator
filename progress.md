@@ -153,7 +153,7 @@ python run_extraction_test.py ../example_datasheets/so-8ep_crop.png --model haik
 
 ### Frontend Setup ✅ COMPLETE
 - [x] Initialize React project with Vite
-- [x] Configure Tailwind CSS v4 with Arena AI color theme
+- [x] Configure Tailwind CSS v4
 - [x] Create two-panel layout in App.jsx
 
 ### Components ✅ COMPLETE
@@ -169,7 +169,7 @@ python run_extraction_test.py ../example_datasheets/so-8ep_crop.png --model haik
 - [x] Handle loading states (uploading, extracting, confirming, generating)
 - [x] Handle error states with user-friendly messages
 
-### Design Theme (Arena AI-inspired)
+### Design Theme
 - Dark background: #0d0d0d
 - Lime green accent: #e6fb53
 - Inter font family

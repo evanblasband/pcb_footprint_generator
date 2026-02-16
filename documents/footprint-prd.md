@@ -5,7 +5,7 @@
 | **Product Name** | FootprintAI (working title) |
 | **Document Owner** | Evan Blasband |
 | **Status** | Draft v0.1 → **Implemented v1.0** (2026-02-12) |
-| **Target** | MVP Demo for Arena AI |
+| **Target** | Proof of Concept Demo |
 
 ---
 

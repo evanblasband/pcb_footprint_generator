@@ -1,6 +1,5 @@
 @import "tailwindcss";
 
-/* Arena AI-inspired color theme */
 @theme {
   /* Primary accent - lime green */
   --color-accent: #e6fb53;
