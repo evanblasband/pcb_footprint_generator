@@ -13,16 +13,21 @@ Usage:
 """
 
 import io
+import os
 import uuid
 import zipfile
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional
 
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import FastAPI, File, HTTPException, UploadFile, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, Response
+from fastapi.responses import FileResponse, Response, HTMLResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 
 import anthropic
 
@@ -30,6 +35,19 @@ from extraction import FootprintExtractor, ExtractionResponse, estimate_cost
 from generator_delphiscript import DelphiScriptGenerator
 from models import Footprint, Pad, PadShape, PadType, Outline, ExtractionResult
 from verification import detect_suspicious_values, verify_extraction, apply_corrections
+
+
+# =============================================================================
+# Environment Configuration
+# =============================================================================
+
+# Check if we're in production (Railway sets RAILWAY_ENVIRONMENT)
+IS_PRODUCTION = os.environ.get("RAILWAY_ENVIRONMENT") == "production" or \
+                os.environ.get("ENVIRONMENT") == "production"
+
+# Rate limiting configuration (only applies in production)
+RATE_LIMIT_EXTRACT = "10/hour"  # 10 extractions per hour per IP
+RATE_LIMIT_UPLOAD = "30/hour"   # 30 uploads per hour per IP
 
 
 # =============================================================================
@@ -52,6 +70,33 @@ MAX_FILE_SIZE = 10 * 1024 * 1024
 
 
 # =============================================================================
+# Rate Limiting Setup (production only)
+# =============================================================================
+
+def get_real_ip(request: Request) -> str:
+    """Get real client IP, handling proxies."""
+    # Check for forwarded headers (Railway/proxies)
+    forwarded = request.headers.get("X-Forwarded-For")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return get_remote_address(request)
+
+
+def rate_limit_key(request: Request) -> str:
+    """
+    Generate rate limit key. In production, use IP.
+    In development, return a constant to effectively disable limiting.
+    """
+    if not IS_PRODUCTION:
+        return "development"  # Same key for all requests = no effective limit
+    return get_real_ip(request)
+
+
+# Initialize rate limiter
+limiter = Limiter(key_func=rate_limit_key)
+
+
+# =============================================================================
 # Application Setup
 # =============================================================================
 
@@ -61,10 +106,27 @@ app = FastAPI(
     version="0.1.0",
 )
 
+# Add rate limiter to app state
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
 # CORS configuration for frontend
+allowed_origins = [
+    "http://localhost:3000",
+    "http://localhost:5173",
+]
+
+# Add production origins if configured
+if os.environ.get("FRONTEND_URL"):
+    allowed_origins.append(os.environ.get("FRONTEND_URL"))
+
+# Railway provides the public URL
+if os.environ.get("RAILWAY_PUBLIC_DOMAIN"):
+    allowed_origins.append(f"https://{os.environ.get('RAILWAY_PUBLIC_DOMAIN')}")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:5173"],  # React dev servers
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -212,17 +274,41 @@ class StandardPackageResponse(BaseModel):
 @app.get("/")
 async def root():
     """Health check endpoint."""
-    return {"status": "ok", "service": "PCB Footprint Generator API"}
+    return {
+        "status": "ok",
+        "service": "PCB Footprint Generator API",
+        "environment": "production" if IS_PRODUCTION else "development",
+        "rate_limiting": IS_PRODUCTION
+    }
+
+
+@app.get("/api/status")
+async def api_status():
+    """
+    Get API status including rate limit information.
+    """
+    return {
+        "status": "ok",
+        "environment": "production" if IS_PRODUCTION else "development",
+        "rate_limits": {
+            "extract": RATE_LIMIT_EXTRACT if IS_PRODUCTION else "unlimited",
+            "upload": RATE_LIMIT_UPLOAD if IS_PRODUCTION else "unlimited",
+        },
+        "note": "Rate limits only apply in production environment"
+    }
 
 
 @app.post("/api/upload", response_model=UploadResponse)
-async def upload_image(files: list[UploadFile] = File(...)):
+@limiter.limit(RATE_LIMIT_UPLOAD)
+async def upload_image(request: Request, files: list[UploadFile] = File(...)):
     """
     Upload one or more datasheet images for footprint extraction.
 
     Accepts PNG, JPEG, GIF, or WebP images up to 10MB each.
     Multiple images provide more context for better extraction accuracy.
     Returns a job_id for subsequent extraction and generation.
+
+    Rate limited to 30 requests/hour in production.
     """
     if not files:
         raise HTTPException(status_code=400, detail="At least one file is required")
@@ -310,13 +396,16 @@ async def add_images_to_job(job_id: str, files: list[UploadFile] = File(...)):
 
 
 @app.get("/api/extract/{job_id}", response_model=ExtractResponse)
-async def extract_dimensions(job_id: str, model: str = "sonnet", staged: bool = False, verify: bool = False, examples: bool = False):
+@limiter.limit(RATE_LIMIT_EXTRACT)
+async def extract_dimensions(request: Request, job_id: str, model: str = "sonnet", staged: bool = False, verify: bool = False, examples: bool = False):
     """
     Extract footprint dimensions from the uploaded images.
 
     Uses Claude Vision API to analyze the datasheet images and extract
     pad positions, dimensions, and other footprint data. Multiple images
     provide additional context for more accurate extraction.
+
+    Rate limited to 10 requests/hour in production.
 
     Args:
         job_id: The job ID from upload
@@ -752,3 +841,31 @@ async def get_documentation(doc_name: str):
     content = doc_path.read_text(encoding="utf-8")
 
     return {"name": doc_name, "content": content}
+
+
+# =============================================================================
+# Static File Serving (Production)
+# =============================================================================
+
+# In production, serve the built frontend from the static directory
+STATIC_DIR = Path(__file__).parent / "static"
+
+if STATIC_DIR.exists() and IS_PRODUCTION:
+    # Mount static assets (JS, CSS, images)
+    app.mount("/assets", StaticFiles(directory=STATIC_DIR / "assets"), name="assets")
+
+    @app.get("/{full_path:path}", response_class=HTMLResponse)
+    async def serve_spa(full_path: str):
+        """
+        Serve the SPA for any non-API routes.
+        This must be the last route defined.
+        """
+        # Don't serve SPA for API routes
+        if full_path.startswith("api/"):
+            raise HTTPException(status_code=404, detail="Not found")
+
+        index_path = STATIC_DIR / "index.html"
+        if index_path.exists():
+            return HTMLResponse(content=index_path.read_text(), status_code=200)
+
+        raise HTTPException(status_code=404, detail="Frontend not found")

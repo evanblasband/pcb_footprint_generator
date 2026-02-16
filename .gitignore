@@ -35,6 +35,7 @@ yarn-error.log*
 # Build outputs
 frontend/dist/
 frontend/build/
+backend/static/
 *.local
 
 # Environment variables

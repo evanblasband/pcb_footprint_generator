@@ -160,6 +160,43 @@ Approximately $0.002-0.004 per extraction using Claude Sonnet (default). Sonnet 
 | Sonnet | ~$0.003 | Simple SMD packages (default) |
 | Opus | ~$0.004 | Complex TH connectors |
 
+## Deployment (Railway)
+
+### Prerequisites
+
+- Railway account
+- Anthropic API key
+
+### Deploy to Railway
+
+1. **Connect your repo** to Railway
+2. **Set environment variables** in Railway dashboard:
+   ```
+   ANTHROPIC_API_KEY=sk-ant-api03-...
+   ```
+3. **Deploy** - Railway will automatically:
+   - Install Python and Node.js dependencies
+   - Build the React frontend
+   - Copy frontend to backend/static
+   - Start the FastAPI server
+
+### Rate Limiting
+
+In production, the following rate limits apply:
+
+| Endpoint | Limit |
+|----------|-------|
+| `/api/upload` | 30 requests/hour per IP |
+| `/api/extract` | 10 requests/hour per IP |
+
+Rate limits only apply when `RAILWAY_ENVIRONMENT=production` or `ENVIRONMENT=production` is set. Local development has no rate limits.
+
+### Configuration Files
+
+- `railway.toml` - Railway deployment configuration
+- `nixpacks.toml` - Build process (Node + Python)
+- `.env.example` - Environment variable template
+
 ## License
 
 MIT
