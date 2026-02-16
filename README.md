@@ -15,6 +15,54 @@ AI-powered extraction of PCB footprint data from component datasheet images with
 
 Hardware engineers frequently encounter components without existing PCB footprints. Creating footprints manually from datasheets takes 15-60 minutes per component. FootprintAI uses Claude Vision to extract footprint dimensions from datasheet images and generates Altium Designer footprint files automatically.
 
+
+## Features
+
+- **AI Vision Extraction**: Upload, drag-drop, or paste (Ctrl+V) datasheet images
+- **Multiple Image Support**: Upload multiple images (dimension drawings, pin diagrams, tables) for better accuracy
+- **Confidence Scoring**: Low-confidence values highlighted in yellow/orange
+- **Standard Package Detection**: Detects IPC-7351 packages and redirects to Altium's IPC wizard
+- **Pin 1 Selection**: Interactive click-to-select when AI is uncertain
+- **2D Preview**: Visual verification with zoom/pan and pad spacing dimensions
+- **Part Number Input**: Custom filename for downloads
+- **Altium Export**: Script Project package (.zip) with .PrjScr and .pas files
+- **In-App Documentation**: Tabs for README, PRD, and Technical Decisions with Mermaid diagram support
+
+## Tech Stack
+
+| Layer | Technology |
+|-------|------------|
+| Frontend | React + Tailwind CSS |
+| Backend | Python FastAPI |
+| AI | Anthropic Claude API (Sonnet default, Haiku/Opus available) |
+| Hosting | Railway (local dev first) |
+
+## Project Structure
+
+```
+pcb_footprint_generator/
+├── backend/
+│   ├── main.py                    # FastAPI app and routes
+│   ├── extraction.py              # Claude Vision API integration
+│   ├── generator_delphiscript.py  # DelphiScript (.pas) generation
+│   ├── models.py                  # Pydantic data models
+│   ├── prompts.py                 # AI extraction prompts
+│   ├── requirements.txt
+│   ├── pytest.ini                 # Test configuration
+│   └── tests/                     # 186 unit tests
+├── frontend/
+│   ├── src/
+│   │   ├── App.jsx                # Main app with two-panel layout
+│   │   ├── main.jsx               # Entry point
+│   │   ├── index.css              # Tailwind v4 theme
+│   │   └── components/            # React components
+│   ├── vite.config.js             # Vite config with API proxy
+│   └── package.json
+├── documents/                     # PRD and ground truth data
+├── example_datasheets/            # Test images
+└── README.md
+```
+
 ## Architecture
 
 ### System Architecture
@@ -98,52 +146,6 @@ sequenceDiagram
     A->>A: Create footprint
 ```
 
-## Features
-
-- **AI Vision Extraction**: Upload, drag-drop, or paste (Ctrl+V) datasheet images
-- **Multiple Image Support**: Upload multiple images (dimension drawings, pin diagrams, tables) for better accuracy
-- **Confidence Scoring**: Low-confidence values highlighted in yellow/orange
-- **Standard Package Detection**: Detects IPC-7351 packages and redirects to Altium's IPC wizard
-- **Pin 1 Selection**: Interactive click-to-select when AI is uncertain
-- **2D Preview**: Visual verification with zoom/pan and pad spacing dimensions
-- **Part Number Input**: Custom filename for downloads
-- **Altium Export**: Script Project package (.zip) with .PrjScr and .pas files
-- **In-App Documentation**: Tabs for README, PRD, and Technical Decisions with Mermaid diagram support
-
-## Tech Stack
-
-| Layer | Technology |
-|-------|------------|
-| Frontend | React + Tailwind CSS |
-| Backend | Python FastAPI |
-| AI | Anthropic Claude API (Sonnet default, Haiku/Opus available) |
-| Hosting | Railway (local dev first) |
-
-## Project Structure
-
-```
-pcb_footprint_generator/
-├── backend/
-│   ├── main.py                    # FastAPI app and routes
-│   ├── extraction.py              # Claude Vision API integration
-│   ├── generator_delphiscript.py  # DelphiScript (.pas) generation
-│   ├── models.py                  # Pydantic data models
-│   ├── prompts.py                 # AI extraction prompts
-│   ├── requirements.txt
-│   ├── pytest.ini                 # Test configuration
-│   └── tests/                     # 186 unit tests
-├── frontend/
-│   ├── src/
-│   │   ├── App.jsx                # Main app with two-panel layout
-│   │   ├── main.jsx               # Entry point
-│   │   ├── index.css              # Tailwind v4 theme
-│   │   └── components/            # React components
-│   ├── vite.config.js             # Vite config with API proxy
-│   └── package.json
-├── documents/                     # PRD and ground truth data
-├── example_datasheets/            # Test images
-└── README.md
-```
 
 ## Quick Start
 
