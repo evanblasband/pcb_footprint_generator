@@ -854,6 +854,14 @@ if STATIC_DIR.exists():
     # Mount static assets (JS, CSS, images)
     app.mount("/assets", StaticFiles(directory=STATIC_DIR / "assets"), name="assets")
 
+    @app.get("/favicon.svg")
+    async def serve_favicon():
+        """Serve the favicon."""
+        favicon_path = STATIC_DIR / "favicon.svg"
+        if favicon_path.exists():
+            return FileResponse(favicon_path, media_type="image/svg+xml")
+        raise HTTPException(status_code=404, detail="Favicon not found")
+
     @app.get("/{full_path:path}", response_class=HTMLResponse)
     async def serve_spa(full_path: str):
         """
