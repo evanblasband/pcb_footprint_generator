@@ -618,7 +618,7 @@ See `technical_decisions.md` TD-001 for full rationale.
 ### Phase 3: Integration & Polish (Day 3) ✅ COMPLETE
 - [x] End-to-end testing with Altium Designer 26
 - [x] Error handling and user-friendly messages
-- [ ] Deploy to Railway (pending)
+- [x] Deploy to Railway (Docker-based, rate limiting enabled)
 - [x] Documentation/README
 
 ### Phase 4: Validation (Ongoing)

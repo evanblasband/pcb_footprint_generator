@@ -769,8 +769,119 @@ Implement a **verification pass** that runs after single-shot extraction to catc
 
 ---
 
+## TD-017: Railway Deployment with Docker
+
+**Date:** 2026-02-16
+**Status:** Implemented
+
+### Context
+Need to deploy the application to a cloud platform for public access.
+
+### Alternatives Considered
+
+| Option | Pros | Cons |
+|--------|------|------|
+| Railway (nixpacks) | Auto-detect build | Failed with Node+Python combo |
+| **Railway (Dockerfile)** | Full control, multi-stage builds | More config needed |
+| Vercel + separate API | Great for React | Requires two services |
+| Fly.io | Good Docker support | Less familiar |
+
+### Decision
+Use Railway with a custom Dockerfile using multi-stage builds.
+
+### Implementation
+
+**Dockerfile structure:**
+```dockerfile
+# Stage 1: Build frontend
+FROM node:20-slim AS frontend-builder
+WORKDIR /app/frontend
+COPY frontend/ ./
+RUN npm install && npm run build
+
+# Stage 2: Python backend + static files
+FROM python:3.11-slim
+WORKDIR /app
+COPY backend/ ./
+COPY --from=frontend-builder /app/frontend/dist ./static
+RUN pip install -r requirements.txt
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "${PORT:-8000}"]
+```
+
+**Key decisions:**
+1. Single service serves both frontend (static files) and backend (API)
+2. Frontend built in Node stage, copied to Python stage
+3. FastAPI serves static files from `/static` directory
+4. Health check moved to `/api/health` so root `/` serves the SPA
+
+### Consequences
+- Single deployment, simpler architecture
+- No CORS issues (same origin)
+- Slightly larger Docker image (~500MB)
+
+---
+
+## TD-018: Rate Limiting with slowapi
+
+**Date:** 2026-02-16
+**Status:** Implemented
+
+### Context
+The deployed app uses the developer's API key. Need to prevent abuse and control costs.
+
+### Alternatives Considered
+
+| Option | Pros | Cons |
+|--------|------|------|
+| No rate limiting | Simple | Vulnerable to abuse |
+| **slowapi** | Easy FastAPI integration | Basic features only |
+| Redis-based | Distributed, persistent | Overkill for MVP |
+| API key per user | Fair usage tracking | Requires user accounts |
+
+### Decision
+Use slowapi with IP-based rate limiting, only active in production.
+
+### Implementation
+
+```python
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+
+# Only rate limit in production
+IS_PRODUCTION = os.environ.get("RAILWAY_ENVIRONMENT") == "production" or \
+                os.environ.get("ENVIRONMENT") == "production"
+
+def rate_limit_key(request: Request) -> str:
+    if not IS_PRODUCTION:
+        return "development"  # Same key = no effective limit
+    return get_real_ip(request)
+
+limiter = Limiter(key_func=rate_limit_key)
+
+@app.post("/api/upload")
+@limiter.limit("30/hour")
+async def upload_image(...): ...
+
+@app.get("/api/extract/{job_id}")
+@limiter.limit("10/hour")
+async def extract_dimensions(...): ...
+```
+
+### Rate Limits
+
+| Endpoint | Limit | Rationale |
+|----------|-------|-----------|
+| `/api/upload` | 30/hour | Generous for normal use |
+| `/api/extract` | 10/hour | AI calls are expensive |
+
+### Consequences
+- Local development unaffected (no limits)
+- Production users limited to ~10 extractions/hour
+- X-Forwarded-For header respected for real IP behind proxy
+
+---
+
 ## Future Decisions (To Be Made)
 
-- **TD-017:** Production deployment strategy (Railway configuration)
-- **TD-018:** Rate limiting and abuse prevention
 - **TD-019:** Error recovery for partial extractions
+- **TD-020:** User accounts and API key management

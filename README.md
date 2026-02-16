@@ -15,6 +15,89 @@ AI-powered extraction of PCB footprint data from component datasheet images with
 
 Hardware engineers frequently encounter components without existing PCB footprints. Creating footprints manually from datasheets takes 15-60 minutes per component. FootprintAI uses Claude Vision to extract footprint dimensions from datasheet images and generates Altium Designer footprint files automatically.
 
+## Architecture
+
+### System Architecture
+
+```mermaid
+flowchart TB
+    subgraph Frontend["Frontend (React + Tailwind)"]
+        UP[UploadPanel]
+        CP[ControlPanel]
+        PC[PreviewCanvas]
+        DT[DimensionTable]
+        MV[MarkdownViewer]
+    end
+
+    subgraph Backend["Backend (FastAPI)"]
+        MA[main.py<br/>API Routes]
+        EX[extraction.py<br/>Claude Vision]
+        GEN[generator_delphiscript.py<br/>Script Generator]
+        MOD[models.py<br/>Pydantic Models]
+        PR[prompts.py<br/>AI Prompts]
+    end
+
+    subgraph External["External Services"]
+        CLAUDE[Claude Vision API<br/>Sonnet/Haiku/Opus]
+        ALTIUM[Altium Designer 26]
+    end
+
+    UP -->|POST /api/upload| MA
+    CP -->|GET /api/extract| MA
+    CP -->|POST /api/confirm| MA
+    CP -->|GET /api/generate| MA
+    MA --> EX
+    EX -->|Vision Request| CLAUDE
+    CLAUDE -->|JSON Response| EX
+    EX --> MOD
+    MA --> GEN
+    GEN -->|.zip package| CP
+    CP -->|Download| ALTIUM
+    MA --> PC
+    MA --> DT
+```
+
+### User Flow
+
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant F as Frontend
+    participant B as Backend
+    participant C as Claude API
+    participant A as Altium
+
+    U->>F: Upload datasheet images
+    F->>B: POST /api/upload (images[])
+    B-->>F: job_id
+
+    U->>F: Click "Extract"
+    F->>B: GET /api/extract/{job_id}
+    B->>C: Vision API (images + prompt)
+    C-->>B: JSON (pads, outline, confidence)
+    B-->>F: ExtractionResult
+
+    F->>F: Display preview + dimensions
+    Note over F: Highlight low-confidence values
+
+    alt Pin 1 uncertain
+        U->>F: Click to select Pin 1
+    end
+
+    U->>F: Click "Confirm"
+    F->>B: POST /api/confirm/{job_id}
+    B-->>F: confirmed
+
+    U->>F: Click "Download"
+    F->>B: GET /api/generate/{job_id}
+    B->>B: Generate DelphiScript
+    B-->>F: Script Project (.zip)
+
+    U->>A: Extract & open .PrjScr
+    U->>A: Run script
+    A->>A: Create footprint
+```
+
 ## Features
 
 - **AI Vision Extraction**: Upload, drag-drop, or paste (Ctrl+V) datasheet images
@@ -109,7 +192,7 @@ The app will be available at http://localhost:5173 (or 5174 if 5173 is in use).
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/` | Health check |
+| GET | `/api/health` | Health check |
 | POST | `/api/upload` | Upload images (PNG/JPEG/GIF/WebP, multiple supported), returns job_id |
 | GET | `/api/extract/{job_id}?model=sonnet` | Extract dimensions with confidence (model: haiku/sonnet/opus) |
 | POST | `/api/confirm/{job_id}` | Confirm dimensions + Pin 1 selection |
@@ -194,7 +277,8 @@ Rate limits only apply when `RAILWAY_ENVIRONMENT=production` or `ENVIRONMENT=pro
 ### Configuration Files
 
 - `railway.toml` - Railway deployment configuration
-- `nixpacks.toml` - Build process (Node + Python)
+- `Dockerfile` - Multi-stage build (Node frontend + Python backend)
+- `.dockerignore` - Files excluded from Docker build
 - `.env.example` - Environment variable template
 
 ## License

@@ -207,11 +207,13 @@ python run_extraction_test.py ../example_datasheets/so-8ep_crop.png --model haik
 - [ ] "Units ambiguous" warning
 - [ ] "Pin 1 not found" trigger
 
-### Deployment
-- [ ] Configure environment variables
-- [ ] Deploy backend to Railway
-- [ ] Deploy frontend to Railway
-- [ ] End-to-end testing on production
+### Deployment ✅ COMPLETE
+- [x] Configure environment variables (ANTHROPIC_API_KEY)
+- [x] Deploy to Railway (Docker-based, single service serves both frontend and backend)
+- [x] Rate limiting implemented (slowapi - 10 extractions/hour, 30 uploads/hour in production)
+- [x] Health check endpoint at `/api/health`
+- [x] Static file serving for React SPA
+- [x] Favicon added
 
 ## Verification Checklist
 - [x] Spike verification: Test .pas scripts run in Altium 26 ✅
