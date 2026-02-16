@@ -1,0 +1,43 @@
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache
+venv
+.venv
+*.egg-info
+
+# Node
+node_modules
+frontend/node_modules
+
+# Build artifacts
+frontend/dist
+backend/static
+
+# IDE
+.idea
+.vscode
+*.swp
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Documentation (keep documents/ for /api/docs endpoint)
+# Don't exclude: documents/
+
+# Test files
+backend/tests
+backend/test_output
+example_datasheets
+
+# Misc
+.DS_Store
+*.log
