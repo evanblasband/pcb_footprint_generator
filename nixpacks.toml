@@ -1,8 +1,7 @@
 # Nixpacks configuration for Railway deployment
 
-[phases.setup]
-# nodejs already includes npm, don't specify separately to avoid collision
-nixPkgs = ["nodejs_20", "python311"]
+# Use nixpacks providers instead of raw nix packages
+providers = ["python", "node"]
 
 [phases.install]
 cmds = [
