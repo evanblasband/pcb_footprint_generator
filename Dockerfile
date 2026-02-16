@@ -19,8 +19,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy backend code
 COPY backend/ ./
 
-# Copy documents for /api/docs endpoint (main.py uses ../documents/ relative path)
-COPY documents/ /documents/
+# Copy documentation files for /api/docs endpoint
+COPY documents/ /docs/documents/
+COPY README.md /docs/README.md
+COPY technical_decisions.md /docs/technical_decisions.md
 
 # Copy built frontend from stage 1
 COPY --from=frontend-builder /app/frontend/dist ./static

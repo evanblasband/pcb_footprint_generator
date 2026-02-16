@@ -808,12 +808,31 @@ async def delete_job(job_id: str):
 # Documentation Endpoints
 # =============================================================================
 
-# Map of document names to file paths (relative to project root)
-DOCS_MAP = {
+# Document paths for local development (relative to backend/)
+LOCAL_DOCS = {
     "readme": "../README.md",
     "prd": "../documents/footprint-prd.md",
     "technical-decisions": "../technical_decisions.md",
 }
+
+# Document paths for Docker/production (absolute paths)
+DOCKER_DOCS = {
+    "readme": "/docs/README.md",
+    "prd": "/docs/documents/footprint-prd.md",
+    "technical-decisions": "/docs/technical_decisions.md",
+}
+
+
+def get_doc_path(doc_name: str) -> Path:
+    """Get document path, checking Docker paths first then local."""
+    # Try Docker path first
+    docker_path = Path(DOCKER_DOCS.get(doc_name, ""))
+    if docker_path.exists():
+        return docker_path
+
+    # Fall back to local path
+    local_path = Path(__file__).parent / LOCAL_DOCS.get(doc_name, "")
+    return local_path
 
 
 @app.get("/api/docs/{doc_name}")
@@ -823,14 +842,13 @@ async def get_documentation(doc_name: str):
 
     Available docs: readme, prd, technical-decisions
     """
-    if doc_name not in DOCS_MAP:
+    if doc_name not in LOCAL_DOCS:
         raise HTTPException(
             status_code=404,
-            detail=f"Document not found: {doc_name}. Available: {list(DOCS_MAP.keys())}"
+            detail=f"Document not found: {doc_name}. Available: {list(LOCAL_DOCS.keys())}"
         )
 
-    # Resolve path relative to this file
-    doc_path = Path(__file__).parent / DOCS_MAP[doc_name]
+    doc_path = get_doc_path(doc_name)
 
     if not doc_path.exists():
         raise HTTPException(
