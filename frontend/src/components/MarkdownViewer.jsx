@@ -275,6 +275,21 @@ function MarkdownViewer({ docName }) {
                 {children}
               </em>
             ),
+            // Handle images - transform paths for deployed app
+            img: ({ src, alt }) => {
+              // Transform frontend/public/ paths to root paths for deployed app
+              let imageSrc = src
+              if (src && src.startsWith('frontend/public/')) {
+                imageSrc = '/' + src.replace('frontend/public/', '')
+              }
+              return (
+                <img
+                  src={imageSrc}
+                  alt={alt || ''}
+                  className="max-w-full h-auto rounded-lg my-4"
+                />
+              )
+            },
           }}
         >
           {content}

@@ -880,16 +880,36 @@ if STATIC_DIR.exists():
             return FileResponse(favicon_path, media_type="image/svg+xml")
         raise HTTPException(status_code=404, detail="Favicon not found")
 
-    @app.get("/{full_path:path}", response_class=HTMLResponse)
+    @app.get("/{full_path:path}")
     async def serve_spa(full_path: str):
         """
-        Serve the SPA for any non-API routes.
+        Serve static files or the SPA for any non-API routes.
         This must be the last route defined.
         """
         # Don't serve SPA for API routes
         if full_path.startswith("api/"):
             raise HTTPException(status_code=404, detail="Not found")
 
+        # Check if it's a static file that exists (e.g., .gif, .png, .jpg)
+        static_file_path = STATIC_DIR / full_path
+        if static_file_path.exists() and static_file_path.is_file():
+            # Determine media type based on extension
+            ext = static_file_path.suffix.lower()
+            media_types = {
+                ".gif": "image/gif",
+                ".png": "image/png",
+                ".jpg": "image/jpeg",
+                ".jpeg": "image/jpeg",
+                ".svg": "image/svg+xml",
+                ".ico": "image/x-icon",
+                ".webp": "image/webp",
+                ".css": "text/css",
+                ".js": "application/javascript",
+            }
+            media_type = media_types.get(ext, "application/octet-stream")
+            return FileResponse(static_file_path, media_type=media_type)
+
+        # Otherwise serve the SPA
         index_path = STATIC_DIR / "index.html"
         if index_path.exists():
             return HTMLResponse(content=index_path.read_text(), status_code=200)
