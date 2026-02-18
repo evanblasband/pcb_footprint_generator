@@ -2,6 +2,15 @@
 
 AI-powered extraction of PCB footprint data from component datasheet images with Altium Designer 26 compatible output.
 
+
+![](frontend/public/FootprintAI_demo.gif)
+
+# Detailed Walkthrough
+
+[![](https://img.youtube.com/vi/7CFOMQ42rN8/0.jpg)](https://youtu.be/7CFOMQ42rN8)
+
+
+
 ## Status
 
 | Component | Status |
